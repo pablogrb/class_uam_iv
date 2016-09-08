@@ -8,6 +8,17 @@ IMPLICIT NONE
 ! 	Public variables
 	PUBLIC :: UAM_IV
 
+! 	Boundary parameter derived type structure
+	TYPE :: UAM_BC_PAR
+! 		Parameter
+		INTEGER :: iedge							! Edge number (1=west, 2=east, 3=south, 4=north)
+		INTEGER :: ncell							! Number of cells
+		INTEGER, ALLOCATABLE :: iloc(:,:)			! Index of first cell modeled (4,max(ncell))(?)
+! 		Concentrations
+		REAL, ALLOCATABLE :: bc_conc(:,:,:,:)		! Boundary concentration array
+													! (cell, layer, hour, edge, species)
+	END TYPE
+
 !	UAM-IV Derived Type Structure					! Input files
 	TYPE :: UAM_IV
 
@@ -65,14 +76,8 @@ IMPLICIT NONE
 													! aerosols) update_times x nstk x nspec
 
 !		BOUNDARY Type
-! 		Boundary Parameters
-		INTEGER, DIMENSION(4) :: iedge				! Edge number (1=west, 2=east, 3=south, 4=north)
-		INTEGER, DIMENSION(4) :: ncell				! Number of cells
-		INTEGER, ALLOCATABLE :: iloc(:,:)			! Index of first cell modeled (4,max(ncell))(?)
-
-! 		Boundary concentrations
-		REAL, ALLOCATABLE :: bound_conc(:,:,:,:,:)	! Boundary concentration array
-													! (cell, layer, hour, edge, species)
+! 		Boundary type array
+		TYPE(UAM_BC_PAR), DIMENSION(4) :: bc		! bc parameter derived typer array
 
 	END TYPE UAM_IV
 
@@ -631,25 +636,27 @@ CONTAINS
 		INTEGER :: i_bd, ii_bd, i_nd
 		INTEGER :: ione = 1
 
-! 		Loop through boundaries to read ncell
-		DO i_bd = 1,4
-! 			Read cell numbers
-			READ (fl%unit) ione, fl%iedge(i_bd), fl%ncell(i_bd)
-		END DO
+		DO i_bd = 1, 4
 
-! 		Rewind the file 4 records
-		DO i_bd = 1,4
-			BACKSPACE (fl%unit)
-		END DO
+! 			Read the cell numbers
+			READ (fl%unit) ione, fl%bc(i_bd)%iedge, fl%bc(i_bd)%ncell
 
-! 		Allocate the arrays
-		ALLOCATE(fl%iloc(4,MAXVAL(fl%ncell)))
+! 			Debug output
+! 			WRITE(*,*) fl%bc(i_bd)%iedge, fl%bc(i_bd)%ncell
 
-! 		Loop through boundaries to read iloc
-		DO i_bd = 1,4
-! 			Read cell numbers
-			READ (fl%unit) ione, fl%iedge(i_bd), fl%ncell(i_bd), &
-				& ((fl%iloc(ii_bd,i_nd),ii_bd=1,4),i_nd=1,fl%ncell(i_bd))
+! 			Rewind the file one record
+			BACKSPACE(fl%unit)
+
+! 			Allocate the location array
+			ALLOCATE(fl%bc(i_bd)%iloc(4,fl%bc(i_bd)%ncell))
+
+! 			Re-read the record, this time reading the location array
+			READ (fl%unit) ione, ione, ione, &
+				& ((fl%bc(i_bd)%iloc(ii_bd,i_nd),ii_bd=1,4),i_nd=1,fl%bc(i_bd)%ncell)
+
+! 			Debug output
+! 			WRITE(*,*) fl%bc(i_bd)%iloc
+
 		END DO
 
 	END SUBROUTINE read_bound_param
@@ -663,9 +670,11 @@ CONTAINS
 
 ! 		Loop through boundaries to write iloc
 		DO i_bd = 1,4
-! 			Write cell numbers
-			WRITE(fl%unit) ione, fl%iedge(i_bd), fl%ncell(i_bd), &
-				& ((fl%iloc(ii_bd,i_nd),ii_bd=1,4),i_nd=1,fl%ncell(i_bd))
+
+! 			Write the boundary parameters and the location array
+			WRITE(fl%unit) ione, fl%bc(i_bd)%iedge, fl%bc(i_bd)%ncell, &
+				& ((fl%bc(i_bd)%iloc(ii_bd,i_nd),ii_bd=1,4),i_nd=1,fl%bc(i_bd)%ncell)
+
 		END DO
 
 	END SUBROUTINE write_bound_param
@@ -692,7 +701,9 @@ CONTAINS
 		ALLOCATE(fl%nbgtim(fl%update_times), fl%nentim(fl%update_times))
 
 ! 		Allocate the boundary concentration array
-		ALLOCATE(fl%bound_conc(MAXVAL(fl%ncell),fl%nz,fl%update_times,4,fl%nspec))
+		DO i_bd = 1,4
+			ALLOCATE(fl%bc(i_bd)%bc_conc(fl%bc(i_bd)%ncell,fl%nz,fl%update_times,fl%nspec))
+		END DO
 
 ! 		Hour loop
 		DO i_hr = 1,fl%update_times
@@ -716,8 +727,8 @@ CONTAINS
 				DO i_bd = 1, 4
 ! 					Read the boundary concentrations
 					READ (fl%unit) ione, (temp_spname(j),j=1,10), temp_iedge,&
-						&((fl%bound_conc(i_nd,i_nz,i_hr,temp_iedge,i_sp),&
-						&i_nz=1,fl%nz),i_nd=1,fl%ncell(temp_iedge))
+						&((fl%bc(i_bd)%bc_conc(i_nd,i_nz,i_hr,i_sp),&
+						&i_nz=1,fl%nz),i_nd=1,fl%bc(i_bd)%ncell)
 				END DO
 			END DO
 		END DO
@@ -756,8 +767,8 @@ CONTAINS
 				DO i_bd = 1, 4
 ! 					Read the boundary concentrations
 					WRITE(fl%unit) ione, (fl%spname(j,i_sp),j=1,10), i_bd,&
-						&((fl%bound_conc(i_nd,i_nz,i_hr,i_bd,i_sp),&
-						&i_nz=1,fl%nz),i_nd=1,fl%ncell(i_bd))
+						&((fl%bc(i_bd)%bc_conc(i_nd,i_nz,i_hr,i_sp),&
+						&i_nz=1,fl%nz),i_nd=1,fl%bc(i_bd)%ncell)
 				END DO
 			END DO
 		END DO
