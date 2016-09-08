@@ -130,6 +130,9 @@ CONTAINS
 			CALL EXIT(0)
 		END SELECT
 
+! 		Close the file
+		CALL close_file(fl)
+
 	END SUBROUTINE read_uamfile
 
 	SUBROUTINE write_uamfile(fl)
@@ -166,6 +169,9 @@ CONTAINS
 			CALL EXIT(0)
 		END SELECT
 
+! 		Close the file
+		CALL close_file(fl)
+
 	END SUBROUTINE write_uamfile
 
 !	------------------------------------------------------------------------------------------
@@ -178,7 +184,7 @@ CONTAINS
 
 ! 		Open the files
 		OPEN (fl%unit,FILE=TRIM(fl%in_file),FORM='UNFORMATTED',STATUS='OLD')
-		WRITE(*,*) 'Opened file: ',TRIM(fl%in_file)
+		WRITE(*,*) 'Opened file: ', TRIM(fl%in_file)
 
 	END SUBROUTINE read_open_file
 
@@ -188,9 +194,19 @@ CONTAINS
 
 ! 		Open the files
 		OPEN (fl%unit,FILE=TRIM(fl%in_file),FORM='UNFORMATTED',STATUS='NEW')
-		WRITE(*,*) 'Opened file: ',TRIM(fl%in_file)
+		WRITE(*,*) 'Opened file: ', TRIM(fl%in_file)
 
 	END SUBROUTINE write_open_file
+
+	SUBROUTINE close_file(fl)
+
+		TYPE(UAM_IV), INTENT(IN) :: fl
+
+! 		Close the file
+		CLOSE (fl%unit)
+		WRITE(*,*) 'Closed file: ', TRIM(fl%in_file)
+
+	END SUBROUTINE close_file
 
 !	------------------------------------------------------------------------------------------
 !	Headers
