@@ -52,19 +52,22 @@ IMPLICIT NONE
 	END TYPE UAM_IV
 
 ! 	Public methods
-	PUBLIC :: read_ptfile
+	PUBLIC :: read_ptfile, write_ptfile
 
 ! 	Private methods
-	PRIVATE :: open_file, read_header, read_species, read_stack_param, read_stack_emis
+	PRIVATE :: read_open_file, read_header, read_species, read_stack_param, read_stack_emis
+	PRIVATE :: write_open_file!, read_header, read_species, read_stack_param, read_stack_emis
 
 CONTAINS
+
+!	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_ptfile(pt)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: pt
 
 ! 		Open the file
-		CALL open_file(pt)
+		CALL read_open_file(pt)
 ! 		Read the header
 		CALL read_header(pt)
 ! 		Read the species names
@@ -76,15 +79,38 @@ CONTAINS
 
 	END SUBROUTINE read_ptfile
 
-	SUBROUTINE open_file(pt)
+	SUBROUTINE write_ptfile(pt)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: pt
+
+! 		Open the file
+		CALL write_open_file(pt)
+
+	END SUBROUTINE write_ptfile
+
+!	------------------------------------------------------------------------------------------
+
+	SUBROUTINE read_open_file(pt)
 
 		TYPE(UAM_IV), INTENT(IN) :: pt
 
 ! 		Open the files
-		OPEN (pt%unit,FILE=TRIM(pt%in_file),FORM='UNFORMATTED',STATUS='old')
+		OPEN (pt%unit,FILE=TRIM(pt%in_file),FORM='UNFORMATTED',STATUS='OLD')
 		WRITE(*,*) 'Opened file: ',TRIM(pt%in_file)
 
-	END SUBROUTINE open_file
+	END SUBROUTINE read_open_file
+
+	SUBROUTINE write_open_file(pt)
+
+		TYPE(UAM_IV), INTENT(IN) :: pt
+
+! 		Open the files
+		OPEN (pt%unit,FILE=TRIM(pt%in_file),FORM='UNFORMATTED',STATUS='NEW')
+		WRITE(*,*) 'Opened file: ',TRIM(pt%in_file)
+
+	END SUBROUTINE write_open_file
+
+!	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_header(pt)
 
@@ -113,6 +139,8 @@ CONTAINS
 
 	END SUBROUTINE read_header
 
+!	------------------------------------------------------------------------------------------
+
 	SUBROUTINE read_species(pt)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: pt
@@ -129,6 +157,8 @@ CONTAINS
 ! 		WRITE(*,'(10a1)') ((pt%spname(i,j),i=1,10),j=1,pt%nspec)
 
 	END SUBROUTINE read_species
+
+!	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_stack_param(pt)
 
@@ -160,6 +190,8 @@ CONTAINS
 
 	END SUBROUTINE read_stack_param
 
+!	------------------------------------------------------------------------------------------
+
 	SUBROUTINE read_stack_emis(pt)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: pt
@@ -183,7 +215,7 @@ CONTAINS
 		DO i_hr = 1,pt%update_times	! Update times is default 24
 ! 			Read the section header
 			READ (pt%unit) pt%ibgdat(i_hr), pt%nbgtim(i_hr), pt%iendat(i_hr), pt%nentim(i_hr)
-! 			Output to screen
+! 			Output the section header to screen
 			WRITE(*,hformat) pt%ibgdat(i_hr), pt%nbgtim(i_hr),&
 				&pt%iendat(i_hr), pt%nentim(i_hr)
 
