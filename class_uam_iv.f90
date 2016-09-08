@@ -61,7 +61,7 @@ IMPLICIT NONE
 	END TYPE UAM_IV
 
 ! 	Public methods
-	PUBLIC :: read_aqfile
+	PUBLIC :: read_aqfile, write_aqfile
 	PUBLIC :: read_ptfile, write_ptfile
 
 ! 	Private methods
@@ -86,6 +86,21 @@ CONTAINS
 		CALL read_grid_conc(fl)
 
 	END SUBROUTINE read_aqfile
+
+	SUBROUTINE write_aqfile(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+! 		Open the file
+		CALL write_open_file(fl)
+! 		Write the header
+		CALL write_header(fl)
+! 		Write the species names
+		CALL write_species(fl)
+! 		Write the 3D concentration grid
+		CALL write_grid_conc(fl)
+
+	END SUBROUTINE write_aqfile
 
 	SUBROUTINE read_ptfile(fl)
 
@@ -270,6 +285,39 @@ CONTAINS
 		END DO
 
 	END SUBROUTINE read_grid_conc
+
+	SUBROUTINE write_grid_conc(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+		INTEGER :: i_hr, i_sp, i_nz, i_nx, i_ny
+		INTEGER :: ione = 1
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: j
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+! 		Loop over hours
+		DO i_hr = 1,fl%update_times ! Update times is default 24
+! 			Write the section header
+			WRITE(fl%unit) fl%ibgdat(i_hr), fl%nbgtim(i_hr), fl%iendat(i_hr), fl%nentim(i_hr)
+! 			Output the section header to screen
+			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+
+! 			Loop though species
+			DO i_sp = 1, fl%nspec
+! 				Loop through layers
+				DO i_nz = 1,fl%nz
+					WRITE(fl%unit) ione, (temp_spname(j),j=1,10), &
+					& ((fl%conc(i_nx, i_ny, i_nz, i_hr, i_sp),i_nx=1, fl%nx), i_ny=1, fl%ny)
+				END DO
+			END DO
+		END DO
+
+	END SUBROUTINE write_grid_conc
 
 !	------------------------------------------------------------------------------------------
 
