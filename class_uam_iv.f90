@@ -5,8 +5,6 @@
 MODULE class_ptfile
 IMPLICIT NONE
 
-	PRIVATE
-
 ! 	Public variables
 	PUBLIC :: UAM_IV
 
@@ -54,9 +52,29 @@ IMPLICIT NONE
 	END TYPE UAM_IV
 
 ! 	Public methods
-	PUBLIC :: open_file, read_header, read_species, read_stack_param, read_stack_emis
+	PUBLIC :: read_ptfile
+
+! 	Private methods
+	PRIVATE :: open_file, read_header, read_species, read_stack_param, read_stack_emis
 
 CONTAINS
+
+	SUBROUTINE read_ptfile(pt)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: pt
+
+! 		Open the file
+		CALL open_file(pt)
+! 		Read the header
+		CALL read_header(pt)
+! 		Read the species names
+		CALL read_species(pt)
+! 		Read the stack parameters
+		CALL read_stack_param(pt)
+! 		Read the emission records
+		CALL read_stack_emis(pt)
+
+	END SUBROUTINE read_ptfile
 
 	SUBROUTINE open_file(pt)
 
