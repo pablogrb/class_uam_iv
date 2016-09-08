@@ -144,6 +144,11 @@ CONTAINS
 			CALL write_stack_param(fl)
 ! 			Write the emission records
 			CALL write_stack_emis(fl)
+		CASE ('BOUNDARY  ')
+! 			Write the boundary parameters
+			CALL write_bound_param(fl)
+! 			Write the boundary concentrations
+			CALL write_bound_conc(fl)
 		END SELECT
 
 	END SUBROUTINE write_uamfile
@@ -601,6 +606,22 @@ CONTAINS
 
 	END SUBROUTINE read_bound_param
 
+	SUBROUTINE write_bound_param(fl)
+
+		TYPE(UAM_IV), INTENT(IN) :: fl
+
+		INTEGER :: i_bd, ii_bd, i_nd
+		INTEGER :: ione = 1
+
+! 		Loop through boundaries to write iloc
+		DO i_bd = 1,4
+! 			Write cell numbers
+			WRITE(fl%unit) ione, fl%iedge(i_bd), fl%ncell(i_bd), &
+				& ((fl%iloc(ii_bd,i_nd),ii_bd=1,4),i_nd=1,fl%ncell(i_bd))
+		END DO
+
+	END SUBROUTINE write_bound_param
+
 !	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_bound_conc(fl)
@@ -655,5 +676,44 @@ CONTAINS
 
 	END SUBROUTINE read_bound_conc
 
+	SUBROUTINE write_bound_conc(fl)
+
+		TYPE(UAM_IV), INTENT(IN) :: fl
+
+		INTEGER :: i_hr, i_sp, i_bd, i_nz, i_nd
+		INTEGER :: ione =1
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: temp_iedge
+		INTEGER :: j
+		INTEGER :: io_status = 0
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+! 		Hour loop
+		DO i_hr = 1,fl%update_times
+! 			Read the section header
+			WRITE(fl%unit) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+! 			Output the section header to screen
+			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+
+! 			Loop though species
+			DO i_sp = 1,fl%nspec
+! 			Ouput species names to terminal for sanity
+! 			WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
+! 				Boundary edge loop
+				DO i_bd = 1, 4
+! 					Read the boundary concentrations
+					WRITE(fl%unit) ione, (fl%spname(j,i_sp),j=1,10), i_bd,&
+						&((fl%bound_conc(i_nd,i_nz,i_hr,i_bd,i_sp),&
+						&i_nz=1,fl%nz),i_nd=1,fl%ncell(i_bd))
+				END DO
+			END DO
+		END DO
+
+	END SUBROUTINE write_bound_conc
 
 END MODULE
