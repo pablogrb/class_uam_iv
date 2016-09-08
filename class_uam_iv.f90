@@ -44,6 +44,10 @@ IMPLICIT NONE
 		REAL, ALLOCATABLE :: conc(:,:,:,:,:)		! Concentration array
 													! (col, row, layer, hour, species)
 
+!		EMISSIONS Type
+!		2D emissions array
+		REAL, ALLOCATABLE :: aemis(:,:,:,:)			! Emissions array
+													! (col, row, hour, species)
 !		PTSOURCE Type
 ! 		Stack Parameters
 		INTEGER :: nstk								! Number of stacks
@@ -74,12 +78,11 @@ IMPLICIT NONE
 
 ! 	Public methods
 	PUBLIC :: read_uamfile, write_uamfile
-	PUBLIC :: read_aqfile, write_aqfile
-	PUBLIC :: read_ptfile, write_ptfile
 
 ! 	Private methods
 	PRIVATE :: read_open_file, read_header, read_species
 	PRIVATE :: read_grid_conc
+	PRIVATE :: read_grid_emis
 	PRIVATE :: read_stack_param, read_stack_emis
 	PRIVATE :: read_bound_param
 
@@ -109,6 +112,9 @@ CONTAINS
 		CASE ('AIRQUALITY')
 ! 			Read the 3D concentration grid
 			CALL read_grid_conc(fl)
+		CASE ('EMISSIONS ')
+! 			Read the 2D emissions grid
+			CALL read_grid_emis(fl)
 		CASE ('PTSOURCE  ')
 !	 		Read the stack parameters
 			CALL read_stack_param(fl)
@@ -119,6 +125,9 @@ CONTAINS
 			CALL read_bound_param(fl)
 ! 			Read the boundary concentrations
 			CALL read_bound_conc(fl)
+		CASE DEFAULT
+			WRITE(*,*) 'class_UAM_IV error: Not a valid file type'
+			CALL EXIT(0)
 		END SELECT
 
 	END SUBROUTINE read_uamfile
@@ -139,6 +148,9 @@ CONTAINS
 		CASE ('AIRQUALITY')
 ! 			Write the 3D concentration grid
 			CALL write_grid_conc(fl)
+		CASE ('EMISSIONS ')
+! 			Write the 2D emissions grid
+			CALL write_grid_emis(fl)
 		CASE ('PTSOURCE  ')
 !	 		Write the stack parameters
 			CALL write_stack_param(fl)
@@ -149,75 +161,12 @@ CONTAINS
 			CALL write_bound_param(fl)
 ! 			Write the boundary concentrations
 			CALL write_bound_conc(fl)
+		CASE DEFAULT
+			WRITE(*,*) 'class_UAM_IV error: Not a valid file type'
+			CALL EXIT(0)
 		END SELECT
 
 	END SUBROUTINE write_uamfile
-
-!	------------------------------------------------------------------------------------------
-
-	SUBROUTINE read_aqfile(fl)
-
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
-
-! 		Open the file
-		CALL read_open_file(fl)
-! 		Read the header
-		CALL read_header(fl)
-! 		Read the species names
-		CALL read_species(fl)
-! 		Read the 3D concentration grid
-		CALL read_grid_conc(fl)
-
-	END SUBROUTINE read_aqfile
-
-	SUBROUTINE write_aqfile(fl)
-
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
-
-! 		Open the file
-		CALL write_open_file(fl)
-! 		Write the header
-		CALL write_header(fl)
-! 		Write the species names
-		CALL write_species(fl)
-! 		Write the 3D concentration grid
-		CALL write_grid_conc(fl)
-
-	END SUBROUTINE write_aqfile
-
-	SUBROUTINE read_ptfile(fl)
-
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
-
-! 		Open the file
-		CALL read_open_file(fl)
-! 		Read the header
-		CALL read_header(fl)
-! 		Read the species names
-		CALL read_species(fl)
-! 		Read the stack parameters
-		CALL read_stack_param(fl)
-! 		Read the emission records
-		CALL read_stack_emis(fl)
-
-	END SUBROUTINE read_ptfile
-
-	SUBROUTINE write_ptfile(fl)
-
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
-
-! 		Open the file
-		CALL write_open_file(fl)
-! 		Write the header
-		CALL write_header(fl)
-! 		Write the species names
-		CALL write_species(fl)
-! 		Write the stack parameters
-		CALL write_stack_param(fl)
-! 		Write the emission records
-		CALL write_stack_emis(fl)
-
-	END SUBROUTINE write_ptfile
 
 !	------------------------------------------------------------------------------------------
 !	File Opening
@@ -418,6 +367,89 @@ CONTAINS
 		END DO
 
 	END SUBROUTINE write_grid_conc
+
+!	------------------------------------------------------------------------------------------
+!	EMISSIONS 2D Grid
+!	------------------------------------------------------------------------------------------
+
+	SUBROUTINE read_grid_emis(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+		INTEGER :: i_hr, i_sp, i_nz, i_nx, i_ny
+		INTEGER :: ione = 1
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: j
+		INTEGER :: io_status = 0
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+! 		Allocate the header arrays
+		ALLOCATE(fl%ibgdat(fl%update_times), fl%iendat(fl%update_times))
+		ALLOCATE(fl%nbgtim(fl%update_times), fl%nentim(fl%update_times))
+
+! 		Allocate the 2D concentration array
+		ALLOCATE(fl%aemis(fl%nx,fl%ny,fl%update_times,fl%nspec))
+
+! 		Loop over hours
+		DO i_hr = 1,fl%update_times ! Update times is default 24
+! 			Read the section header
+			READ (fl%unit,IOSTAT=io_status) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+! 			Check for EOF
+			IF (io_status .LT. 0) THEN
+				fl%update_times = i_hr - 1
+				EXIT
+			END IF
+! 			Output the section header to screen
+			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+
+! 			Loop though species
+			DO i_sp = 1, fl%nspec
+! 				Ouput species names to terminal for sanity
+! 				WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
+				READ (fl%unit) ione, (temp_spname(j),j=1,10), &
+				& ((fl%aemis(i_nx, i_ny, i_hr, i_sp),i_nx=1, fl%nx), i_ny=1, fl%ny)
+			END DO
+		END DO
+
+	END SUBROUTINE read_grid_emis
+
+	SUBROUTINE write_grid_emis(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+		INTEGER :: i_hr, i_sp, i_nz, i_nx, i_ny
+		INTEGER :: ione = 1
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: j
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+! 		Loop over hours
+		DO i_hr = 1,fl%update_times ! Update times is default 24
+! 			Read the section header
+			WRITE(fl%unit) fl%ibgdat(i_hr), fl%nbgtim(i_hr), fl%iendat(i_hr), fl%nentim(i_hr)
+
+! 			Output the section header to screen
+			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+
+! 			Loop though species
+			DO i_sp = 1, fl%nspec
+! 				Ouput species names to terminal for sanity
+! 				WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
+				WRITE(fl%unit) ione, (temp_spname(j),j=1,10), &
+				& ((fl%aemis(i_nx, i_ny, i_hr, i_sp),i_nx=1, fl%nx), i_ny=1, fl%ny)
+			END DO
+		END DO
+
+	END SUBROUTINE write_grid_emis
 
 !	------------------------------------------------------------------------------------------
 !	PTSOURCE parameters and emissions
