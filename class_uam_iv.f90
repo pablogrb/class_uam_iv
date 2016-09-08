@@ -39,10 +39,22 @@ IMPLICIT NONE
 		REAL, ALLOCATABLE :: hstk(:), dstk(:)		! Stack height and diameter
 		REAL, ALLOCATABLE :: tstk(:), vstk(:)		! Stack temperature and velocity
 
+! 		Stack Emissions
+		INTEGER :: update_times = 24				! Number of emissions data points per file
+		INTEGER, ALLOCATABLE :: ibgdat(:), iendat(:)! Beggining and end date of emission records
+		REAL, ALLOCATABLE :: nbgtim(:), nentim(:)	! Beggining and end time of emission records
+		INTEGER, ALLOCATABLE :: icell(:),jcell(:)	! idum in the CAMx manual
+		INTEGER, ALLOCATABLE :: kcell(:)			! Ignored, except as flag for OSAT
+		REAL, ALLOCATABLE :: flow(:)				! Stack flow rate (m3 /hr)
+		REAL, ALLOCATABLE :: plmht(:)				! Effective plume height override (m)
+		REAL, ALLOCATABLE :: ptemis(:,:,:)			! Species point emission rate (mol/time 
+													! period for gases, g/time period for
+													! aerosols) update_times x nstk x nspec
+
 	END TYPE UAM_IV
 
 ! 	Public methods
-	PUBLIC :: open_file, read_header, read_species, read_stack_param
+	PUBLIC :: open_file, read_header, read_species, read_stack_param, read_stack_emis
 
 CONTAINS
 
@@ -103,9 +115,9 @@ CONTAINS
 	SUBROUTINE read_stack_param(pt)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: pt
-		INTEGER :: i
+		INTEGER :: i_stk
 		INTEGER :: ione
-		CHARACTER(LEN=20) :: stkformat
+! 		CHARACTER(LEN=20) :: stkformat
 
 ! 		Set the format strings
 ! 		stkformat = '(2(f16.5,1x),4e14.7)'
@@ -120,14 +132,56 @@ CONTAINS
 		ALLOCATE(pt%tstk(pt%nstk), pt%vstk(pt%nstk))
 
 ! 		Read the stack parameter records
-		READ (pt%unit) (pt%xstk(i),pt%ystk(i),pt%hstk(i),pt%dstk(i),pt%tstk(i),pt%vstk(i),&
-			&i=1,pt%nstk)
+		READ (pt%unit) (pt%xstk(i_stk),pt%ystk(i_stk),pt%hstk(i_stk),pt%dstk(i_stk),&
+			&pt%tstk(i_stk),pt%vstk(i_stk),i_stk=1,pt%nstk)
 
-! 		DO i = 1,pt%nstk
-! 			WRITE(*,stkformat) pt%xstk(i),pt%ystk(i),pt%hstk(i),pt%dstk(i),&
-! 				&pt%tstk(i),pt%vstk(i)
+! 		DO i_stk = 1,pt%nstk
+! 			WRITE(*,stkformat) pt%xstk(i_stk),pt%ystk(i_stk),pt%hstk(i_stk),&
+! 				&pt%dstk(i_stk),pt%tstk(i_stk),pt%vstk(i_stk)
 ! 		END DO
 
 	END SUBROUTINE read_stack_param
+
+	SUBROUTINE read_stack_emis(pt)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: pt
+
+		INTEGER :: i_hr, i_stk, i_sp, ione
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: j
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+		ALLOCATE(pt%ibgdat(pt%update_times), pt%iendat(pt%update_times))
+		ALLOCATE(pt%nbgtim(pt%update_times), pt%nentim(pt%update_times))
+		ALLOCATE(pt%icell(pt%nstk),pt%jcell(pt%nstk),pt%kcell(pt%nstk))
+		ALLOCATE(pt%flow(pt%nstk),pt%plmht(pt%nstk))
+
+		ALLOCATE(pt%ptemis(pt%update_times,pt%nstk,pt%nspec))
+
+! 		Loop over hours
+		DO i_hr = 1,pt%update_times	! Update times is default 24
+! 			Read the section header
+			READ (pt%unit) pt%ibgdat(i_hr), pt%nbgtim(i_hr), pt%iendat(i_hr), pt%nentim(i_hr)
+! 			Output to screen
+			WRITE(*,hformat) pt%ibgdat(i_hr), pt%nbgtim(i_hr),&
+				&pt%iendat(i_hr), pt%nentim(i_hr)
+
+! 			Read the stack number
+			READ (pt%unit) ione, pt%nstk
+! 			Read the point source descriptions
+			READ (pt%unit) (pt%icell(i_stk),pt%jcell(i_stk),pt%kcell(i_stk),pt%flow(i_stk),&
+				&pt%plmht(i_stk),i_stk=1,pt%nstk)
+
+! 			Loop though species
+			DO i_sp = 1, pt%nspec
+				READ (pt%unit) ione, (temp_spname(j),j=1,10), (pt%ptemis(i_hr,i_stk,i_sp),&
+					&i_stk=1,pt%nstk)
+			END DO
+		END DO
+
+	END SUBROUTINE read_stack_emis
 
 END MODULE
