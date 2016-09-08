@@ -56,7 +56,7 @@ IMPLICIT NONE
 
 ! 	Private methods
 	PRIVATE :: read_open_file, read_header, read_species, read_stack_param, read_stack_emis
-	PRIVATE :: write_open_file, write_header, write_species, write_stack_param!, read_stack_emis
+	PRIVATE :: write_open_file, write_header, write_species, write_stack_param, write_stack_emis
 
 CONTAINS
 
@@ -147,7 +147,7 @@ CONTAINS
 
 	SUBROUTINE write_header(pt)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: pt
+		TYPE(UAM_IV), INTENT(IN) :: pt
 		INTEGER :: i
 		CHARACTER(LEN=41) :: h1format, h2format
 
@@ -160,7 +160,6 @@ CONTAINS
 			&pt%endtim
 		WRITE(*,h1format) pt%fname,pt%note,pt%nseg,pt%nspec,pt%idate,pt%begtim,pt%jdate,&
 			&pt%endtim
-		WRITE(pt%ftype,'(10a1)') (pt%fname(i),i=1,10)
 		WRITE(*,*) 'File type is ',pt%ftype
 
 ! 		Write the second header
@@ -193,7 +192,7 @@ CONTAINS
 
 	SUBROUTINE write_species(pt)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: pt
+		TYPE(UAM_IV), INTENT(IN) :: pt
 		INTEGER :: i,j
 
 ! 		Write the species records
@@ -217,7 +216,7 @@ CONTAINS
 
 ! 		Read the number of stacks
 		READ (pt%unit) ione,pt%nstk
-		WRITE (*,*) ione, pt%nstk, TRIM(pt%in_file)
+		WRITE(*,*) ione, pt%nstk, TRIM(pt%in_file)
 
 ! 		Allocate the stack parameter arrays
 		ALLOCATE(pt%xstk(pt%nstk), pt%ystk(pt%nstk))
@@ -237,7 +236,7 @@ CONTAINS
 
 	SUBROUTINE write_stack_param(pt)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: pt
+		TYPE(UAM_IV), INTENT(IN) :: pt
 		INTEGER :: i_stk
 		INTEGER :: ione = 1
 ! 		CHARACTER(LEN=20) :: stkformat
@@ -247,7 +246,7 @@ CONTAINS
 
 ! 		Write the number of stacks
 		WRITE(pt%unit) ione,pt%nstk
-		WRITE (*,*) ione, pt%nstk, TRIM(pt%in_file)
+		WRITE(*,*) ione, pt%nstk, TRIM(pt%in_file)
 
 ! 		Write the stack parameter records
 		WRITE(pt%unit) (pt%xstk(i_stk),pt%ystk(i_stk),pt%hstk(i_stk),pt%dstk(i_stk),&
@@ -309,5 +308,11 @@ CONTAINS
 		END DO
 
 	END SUBROUTINE read_stack_emis
+
+	SUBROUTINE write_stack_emis(pt)
+
+		TYPE(UAM_IV), INTENT(IN) :: pt
+
+	END SUBROUTINE write_stack_emis
 
 END MODULE
