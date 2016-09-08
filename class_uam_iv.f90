@@ -109,7 +109,7 @@ CONTAINS
 
 ! 		Call different methods according to file type
 		SELECT CASE (fl%ftype)
-		CASE ('AIRQUALITY')
+		CASE ('AVERAGE   ','AIRQUALITY')
 ! 			Read the 3D concentration grid
 			CALL read_grid_conc(fl)
 		CASE ('EMISSIONS ')
@@ -338,7 +338,7 @@ CONTAINS
 ! 			Loop though species
 			DO i_sp = 1, fl%nspec
 ! 			Ouput species names to terminal for sanity
-			WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
+! 			WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
 ! 				Loop through layers
 				DO i_nz = 1,fl%nz
 					READ (fl%unit) ione, (temp_spname(j),j=1,10), &
