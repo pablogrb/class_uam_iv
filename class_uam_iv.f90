@@ -1,5 +1,5 @@
 !	------------------------------------------------------------------------------------------
-!	Point Source File Module
+!	UAM-IV File Module
 !	------------------------------------------------------------------------------------------
 
 MODULE class_UAM_IV
@@ -15,6 +15,7 @@ IMPLICIT NONE
 		CHARACTER(LEN=256) :: in_file				! Input filename
 		INTEGER :: unit								! Input unit
 		CHARACTER(LEN=4), DIMENSION(10) :: fname	! Name array
+		CHARACTER(LEN=10) :: ftype					! File type
 		CHARACTER(LEN=4), DIMENSION(60) :: note		! Note array
 		INTEGER :: nseg,nspec,idate,jdate			! Species number and dates
 		REAL :: begtim, endtim						! Hours
@@ -31,9 +32,12 @@ IMPLICIT NONE
 ! 		Species
 		CHARACTER(LEN=4), ALLOCATABLE :: spname(:,:)	! Species name array
 		CHARACTER(LEN=10), ALLOCATABLE :: c_spname(:)	! Species name array (in single char)
-		CHARACTER(LEN=10) :: ftype					! File type
 		LOGICAL lhdrspec, l3d, lbndry, lptsrc		! Filetype logicals
 ! 		l3d may not be necessary
+
+!		Time variant headers
+		INTEGER, ALLOCATABLE :: ibgdat(:), iendat(:)! Beggining and end date of emission records
+		REAL, ALLOCATABLE :: nbgtim(:), nentim(:)	! Beggining and end time of emission records
 
 !		AIRQUALITY Type
 !		3D concentration array
@@ -48,8 +52,6 @@ IMPLICIT NONE
 		REAL, ALLOCATABLE :: tstk(:), vstk(:)		! Stack temperature and velocity
 
 ! 		Stack Emissions
-		INTEGER, ALLOCATABLE :: ibgdat(:), iendat(:)! Beggining and end date of emission records
-		REAL, ALLOCATABLE :: nbgtim(:), nentim(:)	! Beggining and end time of emission records
 		INTEGER, ALLOCATABLE :: icell(:,:),jcell(:,:)	! idum in the CAMx manual
 		INTEGER, ALLOCATABLE :: kcell(:,:)			! Ignored, except as flag for OSAT
 		REAL, ALLOCATABLE :: flow(:,:)				! Stack flow rate (m3 /hr)
@@ -58,17 +60,93 @@ IMPLICIT NONE
 													! period for gases, g/time period for
 													! aerosols) update_times x nstk x nspec
 
+!		BOUNDARY Type
+! 		Boundary Parameters
+		INTEGER, DIMENSION(4) :: iedge				! Edge number (1=west, 2=east, 3=south, 4=north)
+		INTEGER, DIMENSION(4) :: ncell				! Number of cells
+		INTEGER, ALLOCATABLE :: iloc(:,:)			! Index of first cell modeled (4,max(ncell))(?)
+
+! 		Boundary concentrations
+		REAL, ALLOCATABLE :: bound_conc(:,:,:,:,:)	! Boundary concentration array
+													! (cell, layer, hour, edge, species)
+
 	END TYPE UAM_IV
 
 ! 	Public methods
+	PUBLIC :: read_uamfile, write_uamfile
 	PUBLIC :: read_aqfile, write_aqfile
 	PUBLIC :: read_ptfile, write_ptfile
 
 ! 	Private methods
-	PRIVATE :: read_open_file, read_header, read_species, read_stack_param, read_stack_emis
-	PRIVATE :: write_open_file, write_header, write_species, write_stack_param, write_stack_emis
+	PRIVATE :: read_open_file, read_header, read_species
+	PRIVATE :: read_grid_conc
+	PRIVATE :: read_stack_param, read_stack_emis
+	PRIVATE :: read_bound_param
+
+	PRIVATE :: write_open_file, write_header, write_species
+	PRIVATE :: write_grid_conc
+	PRIVATE :: write_stack_param, write_stack_emis
 
 CONTAINS
+
+!	------------------------------------------------------------------------------------------
+!	Public Methods
+!	------------------------------------------------------------------------------------------
+
+	SUBROUTINE read_uamfile(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+! 		Open the file
+		CALL read_open_file(fl)
+! 		Read the header
+		CALL read_header(fl)
+! 		Read the species names
+		CALL read_species(fl)
+
+! 		Call different methods according to file type
+		SELECT CASE (fl%ftype)
+		CASE ('AIRQUALITY')
+! 			Read the 3D concentration grid
+			CALL read_grid_conc(fl)
+		CASE ('PTSOURCE  ')
+!	 		Read the stack parameters
+			CALL read_stack_param(fl)
+! 			Read the emission records
+			CALL read_stack_emis(fl)
+		CASE ('BOUNDARY  ')
+! 			Read the boundary parameters
+			CALL read_bound_param(fl)
+! 			Read the boundary concentrations
+			CALL read_bound_conc(fl)
+		END SELECT
+
+	END SUBROUTINE read_uamfile
+
+	SUBROUTINE write_uamfile(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+! 		Open the file
+		CALL write_open_file(fl)
+! 		Write the header
+		CALL write_header(fl)
+! 		Write the species names
+		CALL write_species(fl)
+
+! 		Call different methods according to file type
+		SELECT CASE (fl%ftype)
+		CASE ('AIRQUALITY')
+! 			Write the 3D concentration grid
+			CALL write_grid_conc(fl)
+		CASE ('PTSOURCE  ')
+!	 		Write the stack parameters
+			CALL write_stack_param(fl)
+! 			Write the emission records
+			CALL write_stack_emis(fl)
+		END SELECT
+
+	END SUBROUTINE write_uamfile
 
 !	------------------------------------------------------------------------------------------
 
@@ -137,6 +215,8 @@ CONTAINS
 	END SUBROUTINE write_ptfile
 
 !	------------------------------------------------------------------------------------------
+!	File Opening
+!	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_open_file(fl)
 
@@ -158,6 +238,8 @@ CONTAINS
 
 	END SUBROUTINE write_open_file
 
+!	------------------------------------------------------------------------------------------
+!	Headers
 !	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_header(fl)
@@ -245,6 +327,8 @@ CONTAINS
 	END SUBROUTINE write_species
 
 !	------------------------------------------------------------------------------------------
+!	AIRQUALITY 3D Grid
+!	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_grid_conc(fl)
 
@@ -254,6 +338,7 @@ CONTAINS
 		INTEGER :: ione = 1
 		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
+		INTEGER :: io_status = 0
 ! 		Format strings
 		CHARACTER(LEN=17) :: hformat
 
@@ -269,7 +354,13 @@ CONTAINS
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times ! Update times is default 24
 ! 			Read the section header
-			READ (fl%unit) fl%ibgdat(i_hr), fl%nbgtim(i_hr), fl%iendat(i_hr), fl%nentim(i_hr)
+			READ (fl%unit,IOSTAT=io_status) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+! 			Check for EOF
+			IF (io_status .LT. 0) THEN
+				fl%update_times = i_hr - 1
+				EXIT
+			END IF
 ! 			Output the section header to screen
 			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
 				&fl%iendat(i_hr), fl%nentim(i_hr)
@@ -277,7 +368,7 @@ CONTAINS
 ! 			Loop though species
 			DO i_sp = 1, fl%nspec
 ! 			Ouput species names to terminal for sanity
-			WRITE(*,*) 'Processing ', fl%c_spname(i_sp)
+			WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
 ! 				Loop through layers
 				DO i_nz = 1,fl%nz
 					READ (fl%unit) ione, (temp_spname(j),j=1,10), &
@@ -312,7 +403,7 @@ CONTAINS
 ! 			Loop though species
 			DO i_sp = 1, fl%nspec
 ! 			Ouput species names to terminal for sanity
-			WRITE(*,*) 'Processing ', fl%c_spname(i_sp)
+			WRITE(*,*) 'Writing ', fl%c_spname(i_sp)
 ! 				Loop through layers
 				DO i_nz = 1,fl%nz
 					WRITE(fl%unit) ione, (temp_spname(j),j=1,10), &
@@ -323,6 +414,8 @@ CONTAINS
 
 	END SUBROUTINE write_grid_conc
 
+!	------------------------------------------------------------------------------------------
+!	PTSOURCE parameters and emissions
 !	------------------------------------------------------------------------------------------
 
 	SUBROUTINE read_stack_param(fl)
@@ -390,6 +483,7 @@ CONTAINS
 		INTEGER :: ione = 1
 		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
+		INTEGER :: io_status = 0
 ! 		Format strings
 		CHARACTER(LEN=17) :: hformat
 
@@ -411,7 +505,13 @@ CONTAINS
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times	! Update times is default 24
 ! 			Read the section header
-			READ (fl%unit) fl%ibgdat(i_hr), fl%nbgtim(i_hr), fl%iendat(i_hr), fl%nentim(i_hr)
+			READ (fl%unit,IOSTAT=io_status) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+! 			Check for EOF
+			IF (io_status .LT. 0) THEN
+				fl%update_times = i_hr - 1
+				EXIT
+			END IF
 ! 			Output the section header to screen
 			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
 				&fl%iendat(i_hr), fl%nentim(i_hr)
@@ -456,7 +556,7 @@ CONTAINS
 			WRITE(fl%unit) ione, fl%nstk
 ! 			Write the point source descriptions
 			WRITE(fl%unit) (fl%icell(i_hr,i_stk),fl%jcell(i_hr,i_stk),fl%kcell(i_hr,i_stk),&
-				fl%flow(i_hr,i_stk),fl%plmht(i_hr,i_stk),i_stk=1,fl%nstk)
+				&fl%flow(i_hr,i_stk),fl%plmht(i_hr,i_stk),i_stk=1,fl%nstk)
 
 ! 			Loop though species
 			DO i_sp = 1, fl%nspec
@@ -466,5 +566,94 @@ CONTAINS
 		END DO
 
 	END SUBROUTINE write_stack_emis
+
+!	------------------------------------------------------------------------------------------
+!	BOUNDARY definitions and concentrations
+!	------------------------------------------------------------------------------------------
+
+	SUBROUTINE read_bound_param(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+		INTEGER :: i_bd, ii_bd, i_nd
+		INTEGER :: ione = 1
+
+! 		Loop through boundaries to read ncell
+		DO i_bd = 1,4
+! 			Read cell numbers
+			READ (fl%unit) ione, fl%iedge(i_bd), fl%ncell(i_bd)
+		END DO
+
+! 		Rewind the file 4 records
+		DO i_bd = 1,4
+			BACKSPACE (fl%unit)
+		END DO
+
+! 		Allocate the arrays
+		ALLOCATE(fl%iloc(4,MAXVAL(fl%ncell)))
+
+! 		Loop through boundaries to read iloc
+		DO i_bd = 1,4
+! 			Read cell numbers
+			READ (fl%unit) ione, fl%iedge(i_bd), fl%ncell(i_bd), &
+				& ((fl%iloc(ii_bd,i_nd),ii_bd=1,4),i_nd=1,fl%ncell(i_bd))
+		END DO
+
+	END SUBROUTINE read_bound_param
+
+!	------------------------------------------------------------------------------------------
+
+	SUBROUTINE read_bound_conc(fl)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+
+		INTEGER :: i_hr, i_sp, i_bd, i_nz, i_nd
+		INTEGER :: ione =1
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: temp_iedge
+		INTEGER :: j
+		INTEGER :: io_status = 0
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+! 		Allocate the header arrays
+		ALLOCATE(fl%ibgdat(fl%update_times), fl%iendat(fl%update_times))
+		ALLOCATE(fl%nbgtim(fl%update_times), fl%nentim(fl%update_times))
+
+! 		Allocate the boundary concentration array
+		ALLOCATE(fl%bound_conc(MAXVAL(fl%ncell),fl%nz,fl%update_times,4,fl%nspec))
+
+! 		Hour loop
+		DO i_hr = 1,fl%update_times
+! 			Read the section header
+			READ (fl%unit,IOSTAT=io_status) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+! 			Check for EOF
+			IF (io_status .LT. 0) THEN
+				fl%update_times = i_hr - 1
+				EXIT
+			END IF
+! 			Output the section header to screen
+			WRITE(*,hformat) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
+				&fl%iendat(i_hr), fl%nentim(i_hr)
+
+! 			Loop though species
+			DO i_sp = 1,fl%nspec
+! 			Ouput species names to terminal for sanity
+! 			WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
+! 				Boundary edge loop
+				DO i_bd = 1, 4
+! 					Read the boundary concentrations
+					READ (fl%unit) ione, (temp_spname(j),j=1,10), temp_iedge,&
+						&((fl%bound_conc(i_nd,i_nz,i_hr,temp_iedge,i_sp),&
+						&i_nz=1,fl%nz),i_nd=1,fl%ncell(temp_iedge))
+				END DO
+			END DO
+		END DO
+
+	END SUBROUTINE read_bound_conc
+
 
 END MODULE
