@@ -83,7 +83,7 @@ CONTAINS
 ! 		Read the species names
 		CALL read_species(fl)
 ! 		Read the 3D concentration grid
-		CALL read_grid_concentrations(fl)
+		CALL read_grid_conc(fl)
 
 	END SUBROUTINE read_aqfile
 
@@ -231,7 +231,7 @@ CONTAINS
 
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_grid_concentrations(fl)
+	SUBROUTINE read_grid_conc(fl)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 
@@ -269,7 +269,7 @@ CONTAINS
 			END DO
 		END DO
 
-	END SUBROUTINE read_grid_concentrations
+	END SUBROUTINE read_grid_conc
 
 !	------------------------------------------------------------------------------------------
 
