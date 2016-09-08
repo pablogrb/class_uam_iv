@@ -41,10 +41,10 @@ IMPLICIT NONE
 		INTEGER :: update_times = 24				! Number of emissions data points per file
 		INTEGER, ALLOCATABLE :: ibgdat(:), iendat(:)! Beggining and end date of emission records
 		REAL, ALLOCATABLE :: nbgtim(:), nentim(:)	! Beggining and end time of emission records
-		INTEGER, ALLOCATABLE :: icell(:),jcell(:)	! idum in the CAMx manual
-		INTEGER, ALLOCATABLE :: kcell(:)			! Ignored, except as flag for OSAT
-		REAL, ALLOCATABLE :: flow(:)				! Stack flow rate (m3 /hr)
-		REAL, ALLOCATABLE :: plmht(:)				! Effective plume height override (m)
+		INTEGER, ALLOCATABLE :: icell(:,:),jcell(:,:)	! idum in the CAMx manual
+		INTEGER, ALLOCATABLE :: kcell(:,:)			! Ignored, except as flag for OSAT
+		REAL, ALLOCATABLE :: flow(:,:)				! Stack flow rate (m3 /hr)
+		REAL, ALLOCATABLE :: plmht(:,:)				! Effective plume height override (m)
 		REAL, ALLOCATABLE :: ptemis(:,:,:)			! Species point emission rate (mol/time 
 													! period for gases, g/time period for
 													! aerosols) update_times x nstk x nspec
@@ -274,11 +274,17 @@ CONTAINS
 
 		hformat = '(5x,2(i10,f10.2))'
 
+! 		Allocate the header arrays
 		ALLOCATE(pt%ibgdat(pt%update_times), pt%iendat(pt%update_times))
 		ALLOCATE(pt%nbgtim(pt%update_times), pt%nentim(pt%update_times))
-		ALLOCATE(pt%icell(pt%nstk),pt%jcell(pt%nstk),pt%kcell(pt%nstk))
-		ALLOCATE(pt%flow(pt%nstk),pt%plmht(pt%nstk))
 
+! 		Allocate the stack description arrays
+		ALLOCATE(pt%icell(pt%update_times,pt%nstk))
+		ALLOCATE(pt%jcell(pt%update_times,pt%nstk))
+		ALLOCATE(pt%kcell(pt%update_times,pt%nstk))
+		ALLOCATE(pt%flow(pt%update_times,pt%nstk),pt%plmht(pt%update_times,pt%nstk))
+
+! 		Allocate the emissions array
 		ALLOCATE(pt%ptemis(pt%update_times,pt%nstk,pt%nspec))
 
 ! 		Loop over hours
@@ -292,8 +298,8 @@ CONTAINS
 ! 			Read the stack number
 			READ (pt%unit) ione, pt%nstk
 ! 			Read the point source descriptions
-			READ (pt%unit) (pt%icell(i_stk),pt%jcell(i_stk),pt%kcell(i_stk),pt%flow(i_stk),&
-				&pt%plmht(i_stk),i_stk=1,pt%nstk)
+			READ (pt%unit) (pt%icell(i_hr,i_stk),pt%jcell(i_hr,i_stk),pt%kcell(i_hr,i_stk),&
+				pt%flow(i_hr,i_stk),pt%plmht(i_hr,i_stk),i_stk=1,pt%nstk)
 
 ! 			Loop though species
 			DO i_sp = 1, pt%nspec
