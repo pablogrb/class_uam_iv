@@ -91,6 +91,8 @@ CONTAINS
 		CALL write_species(pt)
 ! 		Write the stack parameters
 		CALL write_stack_param(pt)
+! 		Write the emission records
+		CALL write_stack_emis(pt)
 
 	END SUBROUTINE write_ptfile
 
@@ -312,6 +314,35 @@ CONTAINS
 	SUBROUTINE write_stack_emis(pt)
 
 		TYPE(UAM_IV), INTENT(IN) :: pt
+
+		INTEGER :: i_hr, i_stk, i_sp, ione
+		CHARACTER(LEN=4) :: temp_spname(10)
+		INTEGER :: j
+! 		Format strings
+		CHARACTER(LEN=17) :: hformat
+
+		hformat = '(5x,2(i10,f10.2))'
+
+! 		Loop over hours
+		DO i_hr = 1,pt%update_times	! Update times is default 24
+! 			Write the section header
+			WRITE(pt%unit) pt%ibgdat(i_hr), pt%nbgtim(i_hr), pt%iendat(i_hr), pt%nentim(i_hr)
+! 			Output the section header to screen
+			WRITE(*,hformat) pt%ibgdat(i_hr), pt%nbgtim(i_hr),&
+				&pt%iendat(i_hr), pt%nentim(i_hr)
+
+! 			Write the stack number
+			WRITE(pt%unit) ione, pt%nstk
+! 			Write the point source descriptions
+			WRITE(pt%unit) (pt%icell(i_hr,i_stk),pt%jcell(i_hr,i_stk),pt%kcell(i_hr,i_stk),&
+				pt%flow(i_hr,i_stk),pt%plmht(i_hr,i_stk),i_stk=1,pt%nstk)
+
+! 			Loop though species
+			DO i_sp = 1, pt%nspec
+				WRITE(pt%unit) ione, (pt%spname(j,i_sp),j=1,10), (pt%ptemis(i_hr,i_stk,i_sp),&
+					&i_stk=1,pt%nstk)
+			END DO
+		END DO
 
 	END SUBROUTINE write_stack_emis
 
