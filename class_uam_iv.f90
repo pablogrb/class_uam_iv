@@ -276,6 +276,8 @@ CONTAINS
 
 ! 			Loop though species
 			DO i_sp = 1, fl%nspec
+! 			Ouput species names to terminal for sanity
+			WRITE(*,*) 'Processing ', fl%c_spname(i_sp)
 ! 				Loop through layers
 				DO i_nz = 1,fl%nz
 					READ (fl%unit) ione, (temp_spname(j),j=1,10), &
@@ -309,6 +311,8 @@ CONTAINS
 
 ! 			Loop though species
 			DO i_sp = 1, fl%nspec
+! 			Ouput species names to terminal for sanity
+			WRITE(*,*) 'Processing ', fl%c_spname(i_sp)
 ! 				Loop through layers
 				DO i_nz = 1,fl%nz
 					WRITE(fl%unit) ione, (temp_spname(j),j=1,10), &
