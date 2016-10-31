@@ -278,7 +278,9 @@ CONTAINS
 		INTEGER :: i,j
 
 ! 		Allocate memory for the species arrays
+		IF (ALLOCATED(fl%spname)) DEALLOCATE(fl%spname)
 		ALLOCATE(fl%spname(10,fl%nspec))
+		IF (ALLOCATED(fl%c_spname)) DEALLOCATE(fl%c_spname)
 		ALLOCATE(fl%c_spname(fl%nspec))
 
 ! 		Read the species records
@@ -320,10 +322,13 @@ CONTAINS
 		hformat = '(5x,2(i10,f10.2))'
 
 ! 		Allocate the header arrays
+		IF (ALLOCATED(fl%ibgdat) .AND. ALLOCATED(fl%iendat)) DEALLOCATE(fl%ibgdat,fl%iendat)
 		ALLOCATE(fl%ibgdat(fl%update_times), fl%iendat(fl%update_times))
+		IF (ALLOCATED(fl%nbgtim) .AND. ALLOCATED(fl%nentim)) DEALLOCATE(fl%nbgtim,fl%nentim)
 		ALLOCATE(fl%nbgtim(fl%update_times), fl%nentim(fl%update_times))
 
 ! 		Allocate the 3D concentration array
+		IF (ALLOCATED(fl%conc)) DEALLOCATE(fl%conc)
 		ALLOCATE(fl%conc(fl%nx,fl%ny,fl%nz,fl%update_times,fl%nspec))
 
 ! 		Loop over hours
