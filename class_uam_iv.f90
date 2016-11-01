@@ -153,7 +153,7 @@ CONTAINS
 
 ! 		Call different methods according to file type
 		SELECT CASE (fl%ftype)
-		CASE ('AIRQUALITY')
+		CASE ('AVERAGE   ','AIRQUALITY')
 ! 			Write the 3D concentration grid
 			CALL write_grid_conc(fl)
 		CASE ('EMISSIONS ')
