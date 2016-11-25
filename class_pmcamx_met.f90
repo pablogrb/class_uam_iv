@@ -15,6 +15,7 @@ IMPLICIT NONE
 	PUBLIC :: PMCAMx_ZP
 
 	TYPE :: PMCAMx_ZP
+
 ! 		File
 		CHARACTER(LEN=256) :: in_file				! Input filename
 		INTEGER :: unit								! Input unit
@@ -23,8 +24,8 @@ IMPLICIT NONE
 ! 		Timing
 		INTEGER :: update_times = 24				! Number of records (frames) per file
 ! 		Record control
-		REAL :: hour								! Hour of the z/p record
-		INTEGER :: idate							! Date of the z/p record
+		REAL, ALLOCATABLE :: hour(:,:)				! Hour of the z/p record
+		INTEGER, ALLOCATABLE :: idate(:,:)			! Date of the z/p record
 ! 		Height and pressure
 		REAL, ALLOCATABLE :: height(:,:,:,:)		! Layer interface height array
 													! (col, row, layer, hour)
@@ -35,7 +36,10 @@ IMPLICIT NONE
 
 !	Public methods
 
+	PUBLIC read_zp
+
 !	Private methods
+	PRIVATE read_open_file_wiu, read_open_file_wou, close_file
 
 CONTAINS
 
@@ -43,29 +47,36 @@ CONTAINS
 !	Height / Pressure
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_zp(fl,in_file,unit,nx,ny,nz)
+	SUBROUTINE read_zp(fl,in_file,nx,ny,nz,unit)
 
 		TYPE(PMCAMx_ZP), INTENT(INOUT) :: fl
 
 		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
-		INTEGER, OPTIONAL :: unit
-		INTEGER, OPTIONAL :: nx, ny, nz
+		INTEGER, INTENT(IN), OPTIONAL :: unit
+		INTEGER, INTENT(IN), OPTIONAL :: nx, ny, nz
 
 ! 		Check for optionals
-		IF PRESENT(in_file) THEN
+		IF (PRESENT(in_file)) THEN
 			fl%in_file = in_file
-		END IF
-		IF PRESENT(unit) THEN
-			fl%unit = unit
 		END IF
 		IF (PRESENT(nx) .AND. PRESENT(ny) .AND. PRESENT(nz)) THEN
 			fl%nx = nx
 			fl%ny = ny
 			fl%nz = nz
 		ELSE IF (PRESENT(nx) .OR. PRESENT(ny) .OR. PRESENT(nz)) THEN
-			WRITE(*,0) 'class_PMCAMx_MET error: Either all or none of nx, ny, nz must be present'
+			WRITE(0,*) 'class_PMCAMx_MET error: Either all or none of nx, ny, nz must be present'
 			CALL EXIT(0)
 		END IF
+		IF (PRESENT(unit)) THEN
+			fl%unit = unit
+! 			Open the file providig the unit
+			CALL read_open_file_wiu(fl%in_file,fl%unit)
+		ELSE
+! 			Open the file with automatic unit assignement
+			CALL read_open_file_wou(fl%in_file,fl%unit)
+		END IF
+
+
 
 	END SUBROUTINE read_zp
 
@@ -73,30 +84,35 @@ CONTAINS
 !	File Opening
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_open_file(fl)
+	SUBROUTINE read_open_file_wiu(in_file,unit)
 
-		CLASS(*), INTENT(INOUT) :: fl
+		CHARACTER(LEN=256), INTENT(IN) :: in_file
+		INTEGER, INTENT(IN) :: unit
 
-		SELECT TYPE (fl)
-		CLASS IS (PMCAMx_ZP)
-			WRITE(*,*) 'File type is Height /  Pressure'
-		CLASS DEFAULT
-			WRITE(*,0) 'class_PMCAMx_MET error: Not a valid file type'
-		END SELECT
+!		Open the unit
+		OPEN(UNIT=unit,FILE=TRIM(in_file),FORM='UNFORMATTED',STATUS='OLD')
+		WRITE(*,*) 'Opened file: ', TRIM(in_file)
 
-! 		Open the file
-		OPEN(NEWUNIT=fl%unit,FILE=TRIM(fl%in_file),FORM='UNFORMATTED',STATUS='OLD')
-		WRITE(*,*) 'Opened file: ', TRIM(fl%in_file)
+	END SUBROUTINE read_open_file_wiu
 
-	END SUBROUTINE read_open_file
+	SUBROUTINE read_open_file_wou(in_file,unit)
 
-	SUBROUTINE close_file(fl)
+		CHARACTER(LEN=256), INTENT(IN) :: in_file
+		INTEGER, INTENT(OUT) :: unit
 
-		TYPE(PMCAMx_MET), INTENT(IN) :: fl
+!		Open the unit
+		OPEN(NEWUNIT=unit,FILE=TRIM(in_file),FORM='UNFORMATTED',STATUS='OLD')
+		WRITE(*,*) 'Opened file: ', TRIM(in_file)
+
+	END SUBROUTINE read_open_file_wou
+
+	SUBROUTINE close_file(unit)
+
+		INTEGER, INTENT(IN) :: unit
 
 ! 		Close the unit
-		CLOSE(fl%met_par%unit)
-		WRITE(*,*) 'Closed file: ', TRIM(fl%met_par%in_file)
+		CLOSE(unit)
+		WRITE(*,*) 'Closed file'
 
 	END SUBROUTINE close_file
 
