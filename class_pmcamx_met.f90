@@ -24,13 +24,13 @@ IMPLICIT NONE
 ! 		Timing
 		INTEGER :: update_times = 24				! Number of records (frames) per file
 ! 		Record control
-		REAL, ALLOCATABLE :: hour(:,:)				! Hour of the z/p record
-		INTEGER, ALLOCATABLE :: idate(:,:)			! Date of the z/p record
+		REAL, ALLOCATABLE :: hour(:,:,:)			! Hour of the z/p record (layer, frame, var)
+		INTEGER, ALLOCATABLE :: idate(:,:,:)		! Date of the z/p record (layer, frame, var)
 ! 		Height and pressure
 		REAL, ALLOCATABLE :: height(:,:,:,:)		! Layer interface height array
-													! (col, row, layer, hour)
-		REAL, ALLOCATABLE :: press(:,:,:,:)			! Layer pressure array
-													! (col, row, layer, hour)
+													! (col, row, layer, frame)
+		REAL, ALLOCATABLE ::  press(:,:,:,:)		! Layer pressure array
+													! (col, row, layer, frame)
 													! Assumes 24 hours, change as necessary
 	END TYPE PMCAMx_ZP
 
@@ -55,6 +55,8 @@ CONTAINS
 		INTEGER, INTENT(IN), OPTIONAL :: unit
 		INTEGER, INTENT(IN), OPTIONAL :: nx, ny, nz
 
+		INTEGER :: i_nx, i_ny, i_nz, i_hr
+
 ! 		Check for optionals
 		IF (PRESENT(in_file)) THEN
 			fl%in_file = in_file
@@ -76,6 +78,29 @@ CONTAINS
 			CALL read_open_file_wou(fl%in_file,fl%unit)
 		END IF
 
+! 		Allocate memory
+		ALLOCATE(fl%hour(fl%nz, fl%update_times+1, 2))
+		ALLOCATE(fl%idate(fl%nz, fl%update_times+1, 2))
+		ALLOCATE(fl%height(fl%nx,fl%ny,fl%nz,fl%update_times+1))
+		ALLOCATE( fl%press(fl%nx,fl%ny,fl%nz,fl%update_times+1))
+
+! 		Loop through frames
+		DO i_hr = 1, fl%update_times+1
+! 		Sanity output
+WRITE(*,*) 'Reading frame: ', i_hr-1
+! 			Loop through layers
+			DO i_nz = 1, fl%nz
+! 				Sanity output
+! 				WRITE(*,*) 'Reading layer', i_nz
+
+! 				Read the heights
+				READ(fl%unit) fl%hour(i_nz,i_hr,1), fl%idate(i_nz,i_hr,1), &
+								& ((fl%height(i_nx,i_ny,i_nz,i_hr),i_nx=1,fl%nx),i_ny=1,fl%ny)
+! 				Read the pressures
+				READ(fl%unit) fl%hour(i_nz,i_hr,2), fl%idate(i_nz,i_hr,2), &
+								& (( fl%press(i_nx,i_ny,i_nz,i_hr),i_nx=1,fl%nx),i_ny=1,fl%ny)
+			END DO
+		END DO
 
 
 	END SUBROUTINE read_zp
@@ -84,24 +109,24 @@ CONTAINS
 !	File Opening
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_open_file_wiu(in_file,unit)
+	SUBROUTINE read_open_file_wiu(in_file,in_unit)
 
 		CHARACTER(LEN=256), INTENT(IN) :: in_file
-		INTEGER, INTENT(IN) :: unit
+		INTEGER, INTENT(IN) :: in_unit
 
 !		Open the unit
-		OPEN(UNIT=unit,FILE=TRIM(in_file),FORM='UNFORMATTED',STATUS='OLD')
+		OPEN(UNIT=in_unit,FILE=TRIM(in_file),FORM='UNFORMATTED',STATUS='OLD')
 		WRITE(*,*) 'Opened file: ', TRIM(in_file)
 
 	END SUBROUTINE read_open_file_wiu
 
-	SUBROUTINE read_open_file_wou(in_file,unit)
+	SUBROUTINE read_open_file_wou(in_file,in_unit)
 
 		CHARACTER(LEN=256), INTENT(IN) :: in_file
-		INTEGER, INTENT(OUT) :: unit
+		INTEGER, INTENT(OUT) :: in_unit
 
 !		Open the unit
-		OPEN(NEWUNIT=unit,FILE=TRIM(in_file),FORM='UNFORMATTED',STATUS='OLD')
+		OPEN(NEWUNIT=in_unit,FILE=TRIM(in_file),FORM='UNFORMATTED',STATUS='OLD')
 		WRITE(*,*) 'Opened file: ', TRIM(in_file)
 
 	END SUBROUTINE read_open_file_wou
