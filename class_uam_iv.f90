@@ -142,12 +142,14 @@ CONTAINS
 
 	END SUBROUTINE read_uamfile
 
-	SUBROUTINE write_uamfile(fl)
+	SUBROUTINE write_uamfile(fl,in_file,unit)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
+		INTEGER, INTENT(IN), OPTIONAL :: unit
 
 ! 		Open the file
-		CALL write_open_file(fl)
+		CALL write_open_file(fl,in_file,unit)
 ! 		Write the header
 		CALL write_header(fl)
 ! 		Write the species names
@@ -209,12 +211,26 @@ CONTAINS
 
 	END SUBROUTINE read_open_file
 
-	SUBROUTINE write_open_file(fl)
+	SUBROUTINE write_open_file(fl,in_file,unit)
 
-		TYPE(UAM_IV), INTENT(IN) :: fl
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
+		INTEGER, INTENT(IN), OPTIONAL :: unit
+
+!		Check for optionals
+		IF (PRESENT(in_file)) THEN
+			fl%in_file = in_file
+		END IF
+		IF (PRESENT(unit)) THEN
+			fl%unit = unit
+		END IF
 
 ! 		Open the files
-		OPEN (fl%unit,FILE=TRIM(fl%in_file),FORM='UNFORMATTED',STATUS='NEW')
+		IF (PRESENT(unit)) THEN
+			OPEN (UNIT=fl%unit,FILE=TRIM(fl%in_file),FORM='UNFORMATTED',STATUS='NEW')
+		ELSE
+			OPEN (NEWUNIT=fl%unit,FILE=TRIM(fl%in_file),FORM='UNFORMATTED',STATUS='NEW')
+		END IF
 		WRITE(*,*) 'Opened file: ', TRIM(fl%in_file)
 
 	END SUBROUTINE write_open_file
