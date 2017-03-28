@@ -87,7 +87,7 @@ CONTAINS
 ! 		Loop through frames
 		DO i_hr = 1, fl%update_times+1
 ! 		Sanity output
-WRITE(*,*) 'Reading frame: ', i_hr-1
+		WRITE(*,*) 'Reading frame: ', i_hr-1
 ! 			Loop through layers
 			DO i_nz = 1, fl%nz
 ! 				Sanity output
