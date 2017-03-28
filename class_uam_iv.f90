@@ -263,7 +263,6 @@ CONTAINS
 	SUBROUTINE write_header(fl)
 
 		TYPE(UAM_IV), INTENT(IN) :: fl
-		INTEGER :: i
 		CHARACTER(LEN=41) :: h1format, h2format
 
 ! 		Set the format strings
@@ -418,7 +417,7 @@ CONTAINS
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 
-		INTEGER :: i_hr, i_sp, i_nz, i_nx, i_ny
+		INTEGER :: i_hr, i_sp, i_nx, i_ny
 		INTEGER :: ione = 1
 		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
@@ -464,7 +463,7 @@ CONTAINS
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 
-		INTEGER :: i_hr, i_sp, i_nz, i_nx, i_ny
+		INTEGER :: i_hr, i_sp, i_nx, i_ny
 		INTEGER :: ione = 1
 		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
@@ -616,7 +615,6 @@ CONTAINS
 
 		INTEGER :: i_hr, i_stk, i_sp
 		INTEGER :: ione = 1
-		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
 ! 		Format strings
 		CHARACTER(LEN=17) :: hformat
@@ -762,10 +760,7 @@ CONTAINS
 
 		INTEGER :: i_hr, i_sp, i_bd, i_nz, i_nd
 		INTEGER :: ione =1
-		CHARACTER(LEN=4) :: temp_spname(10)
-		INTEGER :: temp_iedge
 		INTEGER :: j
-		INTEGER :: io_status = 0
 ! 		Format strings
 		CHARACTER(LEN=17) :: hformat
 
@@ -773,7 +768,7 @@ CONTAINS
 
 ! 		Hour loop
 		DO i_hr = 1,fl%update_times
-! 			Read the section header
+! 			Write the section header
 			WRITE(fl%unit) fl%ibgdat(i_hr), fl%nbgtim(i_hr),&
 				&fl%iendat(i_hr), fl%nentim(i_hr)
 ! 			Output the section header to screen
@@ -786,7 +781,7 @@ CONTAINS
 ! 			WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
 ! 				Boundary edge loop
 				DO i_bd = 1, 4
-! 					Read the boundary concentrations
+! 					Write the boundary concentrations
 					WRITE(fl%unit) ione, (fl%spname(j,i_sp),j=1,10), i_bd,&
 						&((fl%bc(i_bd)%bc_conc(i_nd,i_nz,i_hr,i_sp),&
 						&i_nz=1,fl%nz),i_nd=1,fl%bc(i_bd)%ncell)
