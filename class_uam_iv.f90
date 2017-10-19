@@ -16,7 +16,7 @@ IMPLICIT NONE
 		INTEGER, ALLOCATABLE :: iloc(:,:)			! Index of first cell modeled (4,max(ncell))(?)
 ! 		Concentrations
 		REAL, ALLOCATABLE :: bc_conc(:,:,:,:)		! Boundary concentration array
-													! (cell, layer, hour, edge, species)
+													! (cell, layer, hour, species)
 	END TYPE
 
 !	UAM-IV Derived Type Structure					! Input files
@@ -396,7 +396,6 @@ CONTAINS
 
 		INTEGER :: i_hr, i_sp, i_nz, i_nx, i_ny
 		INTEGER :: ione = 1
-		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
 ! 		Format strings
 		CHARACTER(LEN=17) :: hformat
@@ -417,7 +416,7 @@ CONTAINS
 			WRITE(*,*) 'Writing ', fl%c_spname(i_sp)
 ! 				Loop through layers
 				DO i_nz = 1,fl%nz
-					WRITE(fl%unit) ione, (temp_spname(j),j=1,10), &
+					WRITE(fl%unit) ione, (fl%spname(j,i_sp),j=1,10), &
 					& ((fl%conc(i_nx, i_ny, i_nz, i_hr, i_sp),i_nx=1, fl%nx), i_ny=1, fl%ny)
 				END DO
 			END DO
@@ -481,7 +480,6 @@ CONTAINS
 
 		INTEGER :: i_hr, i_sp, i_nx, i_ny
 		INTEGER :: ione = 1
-		CHARACTER(LEN=4) :: temp_spname(10)
 		INTEGER :: j
 ! 		Format strings
 		CHARACTER(LEN=17) :: hformat
@@ -501,7 +499,7 @@ CONTAINS
 			DO i_sp = 1, fl%nspec
 ! 				Ouput species names to terminal for sanity
 ! 				WRITE(*,*) 'Reading ', fl%c_spname(i_sp)
-				WRITE(fl%unit) ione, (temp_spname(j),j=1,10), &
+				WRITE(fl%unit) ione, (fl%spname(j,i_sp),j=1,10), &
 				& ((fl%aemis(i_nx, i_ny, i_hr, i_sp),i_nx=1, fl%nx), i_ny=1, fl%ny)
 			END DO
 		END DO
