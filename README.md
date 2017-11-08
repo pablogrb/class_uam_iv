@@ -65,15 +65,17 @@ The UAM_IV format, as implemented by CAMx, does not contain the number of data f
 
 #### PTSOURCE
 Stack parameters
+
 * `nstk`: Number of stacks
 * `xstk`, `ystk`: Stack location in projection coordinates, size `nstk`
 * `hstk`, `dstk`: Stack height and diameter, size `nstk`
 * `tstk`, `vstk`: Stack temperature and velocity, size `nstk`
 
 Stack emissions
+
 * `icell`, `jcell`: Unused / No documentation from CAMx
 * `kcell`: Unused except as flag for OSAT
-* `flow`: Stack flow rate (m<sup>3</sup>/hr, size `update_times`, `nstk`
+* `flow`: Stack flow rate (m³/hr, size `update_times`, `nstk`
 * `plmht`: Effective plume height override (m), size `update_times`, `nstk`
 * `ptemis`: Species emission rate (mol/time period for gases, g/time period for particles), size size `update_times`, `nstk`, `nspec`
 
