@@ -16,7 +16,7 @@ IMPLICIT NONE
 		INTEGER, ALLOCATABLE :: iloc(:,:)			! Index of first cell modeled (4,max(ncell))(?)
 ! 		Concentrations
 		REAL, ALLOCATABLE :: bc_conc(:,:,:,:)		! Boundary concentration array
-													! (cell, layer, hour, edge, species)
+													! (cell, layer, hour, species)
 	END TYPE
 
 !	UAM-IV Derived Type Structure					! Input files
@@ -257,7 +257,7 @@ CONTAINS
 
 ! 		Set the format strings
 		h1format='(10a1,60a1,/,i2,1x,i3,1x,i6,f6.0,i6,f6.0)'
-		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3i4)'
+		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3f7.0)'
 
 ! 		Read the first header
 		READ (fl%unit) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
@@ -283,7 +283,7 @@ CONTAINS
 
 ! 		Set the format strings
 		h1format='(10a1,60a1,/,i2,1x,i3,1x,i6,f6.0,i6,f6.0)'
-		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3i4)'
+		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3f7.0)'
 
 ! 		Write the first header
 		WRITE(fl%unit) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
