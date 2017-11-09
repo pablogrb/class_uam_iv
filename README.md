@@ -2,14 +2,26 @@
 
 The UAM\_IV file module defines a *class like* derived type that implements the UAM\_IV file format as defined in Ramboll Environ's CAMx. Provides an *object like* data structure for all types and *method like* subroutines for IO. It was inspired by Dr. Barron Henderson's [pseudonetcdf](https://github.com/barronh/pseudonetcdf) python CAMx compatibly layer and serves as a modern Fortran IO support module.
 
-This module was developed by [Pablo Garcia](pablogar@andrew.cmu.edu) at the Center for Atmospheric Particle Studies in Carnegie Mellon University.
+This module was developed by [Pablo Garcia](pablogar@andrew.cmu.edu) at the Center for Atmospheric Particle Studies at Carnegie Mellon University.
 
-## Usage
+## Example usage
 ```
 #!fortran
-
+PROGRAM example
 USE class_UAM_IV
+
+IMPLICIT NONE
 TYPE(UAM_IV) :: fl
+CHARACTER(LEN=256) :: in_file
+
+CALL read_uamfile(fl, in_file)
+
+! This multiplies all emissions by 1.5
+fl%aemis = fl%aemis * 1.5
+
+CALL write_uamfile(fl, in_file)
+
+END example
 ```
 
 ## Data structure
@@ -59,7 +71,7 @@ The UAM_IV format, as implemented by CAMx, does not contain the number of data f
 
 #### EMISSIONS
 
-* `conc`: 2D area emissions array
+* `aemis`: 2D area emissions array
 	* Size: `nx`, `ny`, `update_times`, `nspec`
 	* Dimensions: EW cell (column), NW cell (row), hour, species
 
