@@ -14,14 +14,14 @@ IMPLICIT NONE
 TYPE(UAM_IV) :: fl
 CHARACTER(LEN=256) :: in_file
 
-CALL read_uamfile(fl, in_file)
+    CALL read_uamfile(fl, in_file)
 
-! This multiplies all emissions by 1.5
-fl%aemis = fl%aemis * 1.5
+    ! This multiplies all emissions by 1.5
+    fl%aemis = fl%aemis * 1.5
 
-CALL write_uamfile(fl, in_file)
+    CALL write_uamfile(fl, in_file)
 
-END example
+END PROGRAM example
 ```
 
 ## Data structure

@@ -20,7 +20,7 @@ IMPLICIT NONE
 	END TYPE
 
 !	UAM-IV Derived Type Structure					! Input files
-	TYPE :: UAM_IV
+	TYPE, PUBLIC :: UAM_IV
 
 ! 		Header
 		CHARACTER(LEN=256) :: in_file				! Input filename
@@ -79,6 +79,10 @@ IMPLICIT NONE
 ! 		Boundary type array
 		TYPE(UAM_BC_PAR), DIMENSION(4) :: bc		! bc parameter derived typer array
 
+!		Type functions
+		CONTAINS
+			PROCEDURE :: spindex => fl_spindex
+
 	END TYPE UAM_IV
 
 ! 	Public methods
@@ -134,7 +138,7 @@ CONTAINS
 ! 			Read the boundary concentrations
 			CALL read_bound_conc(fl)
 		CASE DEFAULT
-			WRITE(*,*) 'class_UAM_IV error: Not a valid file type'
+			WRITE(0,*) 'class_UAM_IV error: Not a valid file type'
 			CALL EXIT(0)
 		END SELECT
 
@@ -175,7 +179,7 @@ CONTAINS
 ! 			Write the boundary concentrations
 			CALL write_bound_conc(fl)
 		CASE DEFAULT
-			WRITE(*,*) 'class_UAM_IV error: Not a valid file type'
+			WRITE(0,*) 'class_UAM_IV error: Not a valid file type'
 			CALL EXIT(0)
 		END SELECT
 
@@ -186,6 +190,29 @@ CONTAINS
 
 !	------------------------------------------------------------------------------------------
 !		Utilities
+
+	FUNCTION fl_spindex(fl,spec) result(index)
+
+		CLASS(UAM_IV), INTENT(IN) :: fl
+		CHARACTER(LEN=*), INTENT(IN) :: spec
+		INTEGER :: index,i_sp
+
+		index = 0
+!		Use c_spname as a lookup table
+		DO i_sp = 1, fl%nspec
+			IF (TRIM(spec) == TRIM(fl%c_spname(i_sp))) THEN
+				index = i_sp
+				EXIT
+			END IF
+		END DO
+
+		IF (index == 0) THEN
+			WRITE(0,*) 'The species ', spec, ' was not found in the species list'
+			CALL EXIT(1)
+		END IF
+
+	END FUNCTION fl_spindex
+
 	SUBROUTINE clone_header(fl_inp, fl_out)
 
 		TYPE(UAM_IV), INTENT(IN) :: fl_inp
@@ -237,6 +264,8 @@ CONTAINS
 		CALL read_open_file(fl,in_file,unit)
 ! 		Read the header
 		CALL read_header(fl,.TRUE.)
+! 		Read the species names
+		CALL read_species(fl,.TRUE.)
 ! 		Close the file
 		CALL close_file(fl)
 
@@ -380,10 +409,19 @@ CONTAINS
 
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_species(fl)
+	SUBROUTINE read_species(fl,silent)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 		INTEGER :: i,j
+		LOGICAL, INTENT(IN), OPTIONAL :: silent
+		LOGICAL :: l_silent
+
+!		Check for optionals
+		IF (.NOT. PRESENT(silent)) THEN
+			l_silent = .FALSE.
+		ELSE
+			l_silent = silent
+		END IF
 
 ! 		Allocate memory for the species arrays
 		IF (ALLOCATED(fl%spname)) DEALLOCATE(fl%spname)
@@ -394,7 +432,11 @@ CONTAINS
 ! 		Read the species records
 		READ (fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 		WRITE(fl%c_spname,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
-		WRITE(*,*) fl%c_spname
+
+!		Print the species list to terminal
+		IF (.NOT. l_silent) THEN
+			WRITE(*,*) fl%c_spname
+		END IF
 ! 		WRITE(*,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 
 	END SUBROUTINE read_species
