@@ -104,13 +104,17 @@ The `BOUNDARY` type uses the `UAM_BC_PAR` derived type, its properties are descr
 
 ## Methods
 ### File IO
-#### Subroutine: `read_uamfile`
+#### Subroutine: `read_uamfile`, method `read`
 Takes a `UAM_IV` type object and populates its properties with information from a compatible UAM\_IV CAMx file. The file type will be determined automatically and fail gracefully if not recognized.
 
 ```
 #!fortran
+! Subroutince call
 CALL read_uamfile(fl)
 CALL read_uamfile(fl, in_file, unit)
+! Method call
+CALL fl%read()
+CALL fl%read(in_file, unit)
 ```
 ##### Required
 * `fl`: A `UAM_IV` type *object like* variable
@@ -118,13 +122,17 @@ CALL read_uamfile(fl, in_file, unit)
 * `in_file`: Path to the input file. If not provided the method will use the value of the `in_file` property of the `fl` object.
 * `unit`: Fortran unit for IO. If not provided the method will assign a Fortran unit to the `unit` property of the `fl` object automatically.
 
-#### Subroutine: `write_uamfile`
+#### Subroutine: `write_uamfile`, method `write`
 Takes a `UAM_IV` type object and writes its properties with to UAM\_IV CAMx file. The file type will be determined by the `ftype` parameter of the input object and fail gracefully if not recognized.
 
 ```
 #!fortran
+! Subroutince call
 CALL write_uamfile(fl)
 CALL write_uamfile(fl, in_file, unit)
+! Method call
+CALL fl%write()
+CALL fl%write(in_file, unit)
 ```
 ##### Required
 * `fl`: A `UAM_IV` type *object like* variable
@@ -157,3 +165,18 @@ CALL inquire_header(fl, in_file, unit)
 ##### Optional
 * `in_file`: Path to the input file. If not provided the method will use the value of the `in_file` property of the `fl` object.
 * `unit`: Fortran unit for IO. If not provided the method will assign a Fortran unit to the `unit` property of the `fl` object automatically.
+
+#### Function `fl_spindex`, method `spindex`
+Ouputs the species index corresponding to a provided species name string that matches one of the species names in the c_spname array
+
+````
+#!Fortran
+! Function call
+spec = 'TERP'
+species_index = fl_spindex(fl,spec)
+! Method call
+terp_emis = aemis(:,:,:,fl%spindex(spec))
+````
+##### Required
+* `fl`: A `UAM_IV` type *object like* variable
+* `spec`: Species name, must be in the c_spname list

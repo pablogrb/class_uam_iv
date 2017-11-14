@@ -32,7 +32,7 @@ IMPLICIT NONE
 		REAL :: begtim, endtim						! Hours
 		INTEGER :: iutm,nx,ny						! UTM zone, horizontal grid
 		INTEGER :: nz,nzlo,nzup						! Vertical grid
-		INTEGER :: hts,htl,htu						! Others ???
+		REAL :: hts,htl,htu							! Others ???
 		INTEGER :: i1,j1,nx1,ny1					! Others ???
 		REAL :: orgx,orgy,utmx,utmy,dx,dy			! Grid origin and spacing
 
@@ -81,6 +81,8 @@ IMPLICIT NONE
 
 !		Type functions
 		CONTAINS
+			PROCEDURE :: read => read_uamfile
+			PROCEDURE :: write => write_uamfile
 			PROCEDURE :: spindex => fl_spindex
 
 	END TYPE UAM_IV
@@ -108,7 +110,7 @@ CONTAINS
 
 	SUBROUTINE read_uamfile(fl,in_file,unit)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CLASS(UAM_IV), INTENT(INOUT) :: fl
 		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
 		INTEGER, INTENT(IN), OPTIONAL :: unit
 
@@ -149,7 +151,7 @@ CONTAINS
 
 	SUBROUTINE write_uamfile(fl,in_file,unit)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CLASS(UAM_IV), INTENT(INOUT) :: fl
 		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
 		INTEGER, INTENT(IN), OPTIONAL :: unit
 
@@ -196,6 +198,13 @@ CONTAINS
 		CLASS(UAM_IV), INTENT(IN) :: fl
 		CHARACTER(LEN=*), INTENT(IN) :: spec
 		INTEGER :: index,i_sp
+
+!		Test for allocation of variable
+		IF (.NOT. ALLOCATED(fl%c_spname)) THEN
+			WRITE(0,*) 'The species list was not allocated'
+			WRITE(0,*) 'Make sure that the file header or full file has been read first'
+			CALL EXIT(1)
+		END IF
 
 		index = 0
 !		Use c_spname as a lookup table
@@ -446,6 +455,12 @@ CONTAINS
 		TYPE(UAM_IV), INTENT(IN) :: fl
 		INTEGER :: i,j
 
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%c_spname)) THEN
+			WRITE(0,*) 'The species list was not allocated'
+			CALL EXIT(1)
+		END IF
+
 ! 		Write the species records
 		WRITE(fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 		WRITE(*,*) fl%c_spname
@@ -520,6 +535,12 @@ CONTAINS
 		CHARACTER(LEN=17) :: hformat
 
 		hformat = '(5x,2(i10,f10.2))'
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%conc)) THEN
+			WRITE(0,*) 'The concentration array was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times ! Update times is default 24
@@ -605,6 +626,12 @@ CONTAINS
 
 		hformat = '(5x,2(i10,f10.2))'
 
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%aemis)) THEN
+			WRITE(0,*) 'The emissions array was not allocated'
+			CALL EXIT(1)
+		END IF
+
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times ! Update times is default 24
 ! 			Read the section header
@@ -668,6 +695,17 @@ CONTAINS
 
 ! 		Set the format strings
 ! 		stkformat = '(2(f16.5,1x),4e14.7)'
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%xstk) .OR. &
+			.NOT. ALLOCATED(fl%ystk) .OR. &
+			.NOT. ALLOCATED(fl%hstk) .OR. &
+			.NOT. ALLOCATED(fl%dstk) .OR. &
+			.NOT. ALLOCATED(fl%tstk) .OR. &
+			.NOT. ALLOCATED(fl%vstk) ) THEN
+			WRITE(0,*) 'One or more stack parameter vector was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Write the number of stacks
 		WRITE(fl%unit) ione,fl%nstk
@@ -753,6 +791,19 @@ CONTAINS
 		CHARACTER(LEN=17) :: hformat
 
 		hformat = '(5x,2(i10,f10.2))'
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%icell) .OR. &
+			.NOT. ALLOCATED(fl%jcell) .OR. &
+			.NOT. ALLOCATED(fl%kcell) .OR. &
+			.NOT. ALLOCATED(fl%flow)  .OR. &
+			.NOT. ALLOCATED(fl%plmht) ) THEN
+			WRITE(0,*) 'One or more stack parameter vector was not allocated'
+			CALL EXIT(1)
+		ELSE IF (.NOT. ALLOCATED(fl%ptemis)) THEN
+			WRITE(0,*) 'The stack emissions array was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times	! Update times is default 24
