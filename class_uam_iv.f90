@@ -20,7 +20,7 @@ IMPLICIT NONE
 	END TYPE
 
 !	UAM-IV Derived Type Structure					! Input files
-	TYPE :: UAM_IV
+	TYPE, PUBLIC :: UAM_IV
 
 ! 		Header
 		CHARACTER(LEN=256) :: in_file				! Input filename
@@ -32,7 +32,7 @@ IMPLICIT NONE
 		REAL :: begtim, endtim						! Hours
 		INTEGER :: iutm,nx,ny						! UTM zone, horizontal grid
 		INTEGER :: nz,nzlo,nzup						! Vertical grid
-		INTEGER :: hts,htl,htu						! Others ???
+		REAL :: hts,htl,htu							! Others ???
 		INTEGER :: i1,j1,nx1,ny1					! Others ???
 		REAL :: orgx,orgy,utmx,utmy,dx,dy			! Grid origin and spacing
 
@@ -79,6 +79,12 @@ IMPLICIT NONE
 ! 		Boundary type array
 		TYPE(UAM_BC_PAR), DIMENSION(4) :: bc		! bc parameter derived typer array
 
+!		Type functions
+		CONTAINS
+			PROCEDURE :: read => read_uamfile
+			PROCEDURE :: write => write_uamfile
+			PROCEDURE :: spindex => fl_spindex
+
 	END TYPE UAM_IV
 
 ! 	Public methods
@@ -104,7 +110,7 @@ CONTAINS
 
 	SUBROUTINE read_uamfile(fl,in_file,unit)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CLASS(UAM_IV), INTENT(INOUT) :: fl
 		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
 		INTEGER, INTENT(IN), OPTIONAL :: unit
 
@@ -134,7 +140,7 @@ CONTAINS
 ! 			Read the boundary concentrations
 			CALL read_bound_conc(fl)
 		CASE DEFAULT
-			WRITE(*,*) 'class_UAM_IV error: Not a valid file type'
+			WRITE(0,*) 'class_UAM_IV error: Not a valid file type'
 			CALL EXIT(0)
 		END SELECT
 
@@ -145,7 +151,7 @@ CONTAINS
 
 	SUBROUTINE write_uamfile(fl,in_file,unit)
 
-		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CLASS(UAM_IV), INTENT(INOUT) :: fl
 		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
 		INTEGER, INTENT(IN), OPTIONAL :: unit
 
@@ -175,7 +181,7 @@ CONTAINS
 ! 			Write the boundary concentrations
 			CALL write_bound_conc(fl)
 		CASE DEFAULT
-			WRITE(*,*) 'class_UAM_IV error: Not a valid file type'
+			WRITE(0,*) 'class_UAM_IV error: Not a valid file type'
 			CALL EXIT(0)
 		END SELECT
 
@@ -186,6 +192,36 @@ CONTAINS
 
 !	------------------------------------------------------------------------------------------
 !		Utilities
+
+	FUNCTION fl_spindex(fl,spec) result(index)
+
+		CLASS(UAM_IV), INTENT(IN) :: fl
+		CHARACTER(LEN=*), INTENT(IN) :: spec
+		INTEGER :: index,i_sp
+
+!		Test for allocation of variable
+		IF (.NOT. ALLOCATED(fl%c_spname)) THEN
+			WRITE(0,*) 'The species list was not allocated'
+			WRITE(0,*) 'Make sure that the file header or full file has been read first'
+			CALL EXIT(1)
+		END IF
+
+		index = 0
+!		Use c_spname as a lookup table
+		DO i_sp = 1, fl%nspec
+			IF (TRIM(spec) == TRIM(fl%c_spname(i_sp))) THEN
+				index = i_sp
+				EXIT
+			END IF
+		END DO
+
+		IF (index == 0) THEN
+			WRITE(0,*) 'The species ', spec, ' was not found in the species list'
+			CALL EXIT(1)
+		END IF
+
+	END FUNCTION fl_spindex
+
 	SUBROUTINE clone_header(fl_inp, fl_out)
 
 		TYPE(UAM_IV), INTENT(IN) :: fl_inp
@@ -237,6 +273,8 @@ CONTAINS
 		CALL read_open_file(fl,in_file,unit)
 ! 		Read the header
 		CALL read_header(fl,.TRUE.)
+! 		Read the species names
+		CALL read_species(fl,.TRUE.)
 ! 		Close the file
 		CALL close_file(fl)
 
@@ -380,10 +418,19 @@ CONTAINS
 
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_species(fl)
+	SUBROUTINE read_species(fl,silent)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 		INTEGER :: i,j
+		LOGICAL, INTENT(IN), OPTIONAL :: silent
+		LOGICAL :: l_silent
+
+!		Check for optionals
+		IF (.NOT. PRESENT(silent)) THEN
+			l_silent = .FALSE.
+		ELSE
+			l_silent = silent
+		END IF
 
 ! 		Allocate memory for the species arrays
 		IF (ALLOCATED(fl%spname)) DEALLOCATE(fl%spname)
@@ -394,7 +441,11 @@ CONTAINS
 ! 		Read the species records
 		READ (fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 		WRITE(fl%c_spname,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
-		WRITE(*,*) fl%c_spname
+
+!		Print the species list to terminal
+		IF (.NOT. l_silent) THEN
+			WRITE(*,*) fl%c_spname
+		END IF
 ! 		WRITE(*,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 
 	END SUBROUTINE read_species
@@ -403,6 +454,12 @@ CONTAINS
 
 		TYPE(UAM_IV), INTENT(IN) :: fl
 		INTEGER :: i,j
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%c_spname)) THEN
+			WRITE(0,*) 'The species list was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Write the species records
 		WRITE(fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
@@ -478,6 +535,12 @@ CONTAINS
 		CHARACTER(LEN=17) :: hformat
 
 		hformat = '(5x,2(i10,f10.2))'
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%conc)) THEN
+			WRITE(0,*) 'The concentration array was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times ! Update times is default 24
@@ -563,6 +626,12 @@ CONTAINS
 
 		hformat = '(5x,2(i10,f10.2))'
 
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%aemis)) THEN
+			WRITE(0,*) 'The emissions array was not allocated'
+			CALL EXIT(1)
+		END IF
+
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times ! Update times is default 24
 ! 			Read the section header
@@ -626,6 +695,17 @@ CONTAINS
 
 ! 		Set the format strings
 ! 		stkformat = '(2(f16.5,1x),4e14.7)'
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%xstk) .OR. &
+			.NOT. ALLOCATED(fl%ystk) .OR. &
+			.NOT. ALLOCATED(fl%hstk) .OR. &
+			.NOT. ALLOCATED(fl%dstk) .OR. &
+			.NOT. ALLOCATED(fl%tstk) .OR. &
+			.NOT. ALLOCATED(fl%vstk) ) THEN
+			WRITE(0,*) 'One or more stack parameter vector was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Write the number of stacks
 		WRITE(fl%unit) ione,fl%nstk
@@ -711,6 +791,19 @@ CONTAINS
 		CHARACTER(LEN=17) :: hformat
 
 		hformat = '(5x,2(i10,f10.2))'
+
+!		Test for variable allocation, don't write an empty variable
+		IF (.NOT. ALLOCATED(fl%icell) .OR. &
+			.NOT. ALLOCATED(fl%jcell) .OR. &
+			.NOT. ALLOCATED(fl%kcell) .OR. &
+			.NOT. ALLOCATED(fl%flow)  .OR. &
+			.NOT. ALLOCATED(fl%plmht) ) THEN
+			WRITE(0,*) 'One or more stack parameter vector was not allocated'
+			CALL EXIT(1)
+		ELSE IF (.NOT. ALLOCATED(fl%ptemis)) THEN
+			WRITE(0,*) 'The stack emissions array was not allocated'
+			CALL EXIT(1)
+		END IF
 
 ! 		Loop over hours
 		DO i_hr = 1,fl%update_times	! Update times is default 24
