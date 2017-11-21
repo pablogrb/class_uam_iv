@@ -175,7 +175,7 @@ Ouputs the species index corresponding to a provided species name string that ma
 spec = 'TERP'
 species_index = fl_spindex(fl,spec)
 ! Method call
-terp_emis = aemis(:,:,:,fl%spindex(spec))
+terp_emis = fl%aemis(:,:,:,fl%spindex(spec))
 ````
 ##### Required
 * `fl`: A `UAM_IV` type *object like* variable
