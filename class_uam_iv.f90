@@ -100,6 +100,7 @@ CONTAINS
 !	------------------------------------------------------------------------------------------
 !	Public Methods
 !	------------------------------------------------------------------------------------------
+!		File IO
 
 	SUBROUTINE read_uamfile(fl,in_file,unit)
 
@@ -184,6 +185,64 @@ CONTAINS
 	END SUBROUTINE write_uamfile
 
 !	------------------------------------------------------------------------------------------
+!		Utilities
+	SUBROUTINE clone_header(fl_inp, fl_out)
+
+		TYPE(UAM_IV), INTENT(IN) :: fl_inp
+		TYPE(UAM_IV), INTENT(INOUT) :: fl_out
+
+!		Build the output file header using the header of the first file and the user dates
+		fl_out%ftype  = fl_inp%ftype
+		fl_out%update_times = fl_inp%update_times
+!		Header 1
+		fl_out%fname  = fl_inp%fname
+		fl_out%note   = fl_inp%note
+		fl_out%nseg   = fl_inp%nseg
+		fl_out%nspec  = fl_inp%nspec
+		fl_out%idate  = fl_inp%idate
+		fl_out%begtim = fl_inp%begtim
+		fl_out%jdate  = fl_inp%jdate
+		fl_out%endtim = fl_inp%endtim
+!		Header 2
+		fl_out%orgx = fl_inp%orgx
+		fl_out%orgy = fl_inp%orgy
+		fl_out%iutm = fl_inp%iutm
+		fl_out%utmx = fl_inp%utmx
+		fl_out%utmy = fl_inp%utmy
+		fl_out%dx   = fl_inp%dx
+		fl_out%dy   = fl_inp%dy
+		fl_out%nx   = fl_inp%nx
+		fl_out%ny   = fl_inp%ny
+		fl_out%nz   = fl_inp%nz
+		fl_out%nzlo = fl_inp%nzlo
+		fl_out%nzup = fl_inp%nzup
+		fl_out%hts  = fl_inp%hts
+		fl_out%htl  = fl_inp%htl
+		fl_out%htu  = fl_inp%htu
+!		Header 3
+		fl_out%i1  = fl_inp%i1
+		fl_out%j1  = fl_inp%j1
+		fl_out%nx1 = fl_inp%nx1
+		fl_out%ny1 = fl_inp%ny1
+
+	END SUBROUTINE
+
+	SUBROUTINE inquire_header(fl,in_file,unit)
+
+		TYPE(UAM_IV), INTENT(INOUT) :: fl
+		CHARACTER(LEN=256), INTENT(IN), OPTIONAL :: in_file
+		INTEGER, INTENT(IN), OPTIONAL :: unit
+
+! 		Open the file
+		CALL read_open_file(fl,in_file,unit)
+! 		Read the header
+		CALL read_header(fl,.TRUE.)
+! 		Close the file
+		CALL close_file(fl)
+
+	END SUBROUTINE inquire_header
+
+!	------------------------------------------------------------------------------------------
 !	File Opening
 !	------------------------------------------------------------------------------------------
 
@@ -249,30 +308,48 @@ CONTAINS
 !	Headers
 !	------------------------------------------------------------------------------------------
 
-	SUBROUTINE read_header(fl)
+	SUBROUTINE read_header(fl,silent)
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 		INTEGER :: i
 		CHARACTER(LEN=41) :: h1format, h2format
+		LOGICAL, INTENT(IN), OPTIONAL :: silent
+		LOGICAL :: l_silent
+
+!		Check for optionals
+		IF (.NOT. PRESENT(silent)) THEN
+			l_silent = .FALSE.
+		ELSE
+			l_silent = silent
+		END IF
 
 ! 		Set the format strings
 		h1format='(10a1,60a1,/,i2,1x,i3,1x,i6,f6.0,i6,f6.0)'
-		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3i4)'
+		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3f7.0)'
 
 ! 		Read the first header
 		READ (fl%unit) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
 			&fl%endtim
-		WRITE(*,h1format) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
-			&fl%endtim
+		! WRITE(*,h1format) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
+		! 	&fl%endtim
 		WRITE(fl%ftype,'(10a1)') (fl%fname(i),i=1,10)
 		WRITE(*,*) 'File type is ',fl%ftype
 
 ! 		Read the second header
 		READ (fl%unit) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
 			&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
-		WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
-			&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
+		! WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
+		! 	&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
 		READ (fl%unit) fl%i1,fl%j1,fl%nx1,fl%ny1
+
+!		Print the header to terminal
+		IF (.NOT. l_silent) THEN
+			WRITE(*,h1format) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
+				&fl%endtim
+			WRITE(*,*) 'File type is ',fl%ftype
+			WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
+				&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
+		END IF
 
 	END SUBROUTINE read_header
 
@@ -283,7 +360,7 @@ CONTAINS
 
 ! 		Set the format strings
 		h1format='(10a1,60a1,/,i2,1x,i3,1x,i6,f6.0,i6,f6.0)'
-		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3i4)'
+		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3f7.0)'
 
 ! 		Write the first header
 		WRITE(fl%unit) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
