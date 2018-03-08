@@ -20,7 +20,7 @@ IMPLICIT NONE
 	END TYPE
 
 !	UAM-IV Derived Type Structure					! Input files
-	TYPE, PUBLIC :: UAM_IV
+	TYPE :: UAM_IV
 
 ! 		Header
 		CHARACTER(LEN=256) :: in_file				! Input filename
