@@ -69,7 +69,7 @@ END SUBROUTINE
 
 !	------------------------------------------------------------------------------------------
 !	clone_species
-!		Copies the header of an UAM-IV type object into another
+!		Copies the species lists of an UAM-IV type object into another
 !	------------------------------------------------------------------------------------------
 SUBROUTINE clone_species(fl_inp, fl_out)
 
@@ -273,6 +273,8 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 		END IF
 	END DO
 
+	WRITE(*,*) 'Concatenating'
+
 	! Get the total number of frames
 	n_frames = 0
 	DO i_fl = 1, SIZE(fl_inp)
@@ -340,17 +342,20 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 		DO i_fl = 1, SIZE(fl_inp)
 			WRITE(*,'(A,I2,A,I2,A)') 'Working on ', i_fl, ' of ', SIZE(fl_inp),' files'
 			! Get the time variant headers
+			! WRITE(*,*) 'Headers'
 			fl_out%ibgdat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%ibgdat
 			fl_out%iendat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%iendat
 			fl_out%nbgtim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nbgtim
 			fl_out%nentim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nentim
 			! Get the stack description arrays
+			! WRITE(*,*) 'Descriptors'
 			fl_out%icell(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%icell
 			fl_out%jcell(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%jcell
 			fl_out%kcell(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%kcell
 			fl_out%flow (24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%flow
 			fl_out%plmht(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%plmht
 			! Get the emissions
+			! WRITE(*,*) 'Emissions'
 			DO i_sp = 1, fl_inp(i_fl)%nspec
 				fl_out%ptemis(24*(i_fl-1)+1:24*i_fl,:,i_sp) = fl_inp(i_fl)%ptemis(:,:,i_sp)
 			END DO
@@ -413,6 +418,8 @@ SUBROUTINE totalize(fl_inp, fl_out)
 		CALL EXIT(2)
 	END IF
 
+	WRITE(*,*) 'Totalizing'
+
 	! Clone the header
 	CALL clone_header(fl_inp, fl_out)
 	fl_out%update_times = 1
@@ -473,11 +480,88 @@ SUBROUTINE totalize(fl_inp, fl_out)
 		! Allocate the emissions array
 		ALLOCATE(fl_out%ptemis(fl_out%update_times,fl_out%nstk,fl_out%nspec))
 		! Get the emissions
-		fl_out%ptemis(1,:,:) = SUM(fl_out%ptemis,1)
+		WRITE(*,*) SUM(fl_inp%ptemis)
+		fl_out%ptemis(1,:,:) = SUM(fl_inp%ptemis,1)
+		WRITE(*,*) SUM(fl_out%ptemis)
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
 	END SELECT
 
 END SUBROUTINE totalize
+
+!	------------------------------------------------------------------------------------------
+!	flatten
+!		Takes an UAM-IV object of type PTOURCE and flattens it into an EMISSIONS object
+!	------------------------------------------------------------------------------------------
+SUBROUTINE flatten(fl_inp, fl_out)
+
+	! UAM-IV object
+	TYPE(UAM_IV), INTENT(IN) :: fl_inp			! Input UAM-IV object
+	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
+
+	! Cell coordinates
+	INTEGER :: stk_x, stk_y
+
+	! Counters
+	INTEGER :: i_stk, i_sp, i
+
+	! ------------------------------------------------------------------------------------------
+	! Entry Point
+
+	! Test for species list allocation, don't work with an empty object
+	IF (.NOT. ALLOCATED(fl_inp%c_spname)) THEN
+		WRITE(0,*) 'The species list was not allocated'
+		CALL EXIT(1)
+	ELSE IF (fl_inp%ftype /= 'PTSOURCE  ') THEN
+		WRITE(0,*) 'Only objects of type PTSOURCE are supported'
+		CALL EXIT(2)
+	END IF
+
+	WRITE(*,*) 'Flattening'
+
+	! Clone the header
+	CALL clone_header(fl_inp, fl_out)
+	! Change the type
+	fl_out%ftype = 'EMISSIONS '
+	DO i = 1, 10
+		fl_out%fname(i) = fl_out%ftype(i:i)
+	END DO
+	! Clone the species
+	CALL clone_species(fl_inp, fl_out)
+
+	! Allocate the time headers
+	ALLOCATE(fl_out%ibgdat(fl_inp%update_times),fl_out%iendat(fl_inp%update_times))
+	ALLOCATE(fl_out%nbgtim(fl_inp%update_times),fl_out%nentim(fl_inp%update_times))
+	! Clone the time headers
+	fl_out%ibgdat = fl_inp%ibgdat
+	fl_out%iendat = fl_inp%iendat
+	fl_out%nbgtim = fl_inp%nbgtim
+	fl_out%nentim = fl_inp%nentim
+
+	! Allocate the emissions array and startup
+	ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,fl_out%update_times,fl_out%nspec))
+	fl_out%aemis = 0
+	WRITE(*,*) SHAPE(fl_out%aemis)
+
+	! Loop through stacks
+	DO i_stk = 1, fl_inp%nstk
+		! Determine the cell coordinates
+		stk_x = INT((fl_inp%xstk(i_stk)-fl_out%utmx)/(fl_out%dx))+1
+		stk_y = INT((fl_inp%ystk(i_stk)-fl_out%utmy)/(fl_out%dy))+1
+		! Only add if in grid
+		IF (stk_x >= 1 .AND. stk_y <= fl_out%nx .AND. &
+		   &stk_y >= 1 .AND. stk_y <= fl_out%ny) THEN	
+	   		! WRITE(*,*) stk_x, stk_y, fl_out%aemis(stk_x,stk_y,1,1), fl_inp%ptemis(1,i_stk,1)
+			! Loop through species
+			DO i_sp = 1, fl_out%nspec
+				! Add concentrations to the corresponding cell
+				fl_out%aemis(stk_x,stk_y,:,i_sp) = &
+					& fl_out%aemis(stk_x,stk_y,:,i_sp) + fl_inp%ptemis(:,i_stk,i_sp)
+			END DO
+		END IF
+		
+	END DO
+
+END SUBROUTINE flatten
 
 END MODULE utils_UAM_IV
