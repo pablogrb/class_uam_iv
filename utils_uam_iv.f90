@@ -384,10 +384,10 @@ SUBROUTINE average(fl_inp, fl_out)
 	SELECT CASE (fl_inp%ftype)
 	CASE ('EMISSIONS ')
 		! Average the totals
-		fl_out%aemis = fl_out%aemis/fl_inp%update_times
+		fl_out%aemis = fl_out%aemis/REAL(fl_inp%update_times)
 	CASE ('PTSOURCE  ')
 		! Average the totals
-		fl_out%ptemis = fl_out%ptemis/fl_inp%update_times
+		fl_out%ptemis = fl_out%ptemis/REAL(fl_inp%update_times)
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
 	END SELECT
@@ -467,8 +467,8 @@ SUBROUTINE totalize(fl_inp, fl_out)
 		fl_out%icell(1,:) = SUM(fl_inp%icell,1)/fl_inp%update_times
 		fl_out%jcell(1,:) = SUM(fl_inp%jcell,1)/fl_inp%update_times
 		fl_out%kcell(1,:) = SUM(fl_inp%kcell,1)/fl_inp%update_times
-		fl_out%flow (1,:) = SUM(fl_inp%flow ,1)/fl_inp%update_times
-		fl_out%plmht(1,:) = SUM(fl_inp%plmht,1)/fl_inp%update_times
+		fl_out%flow (1,:) = SUM(fl_inp%flow ,1)/REAL(fl_inp%update_times)
+		fl_out%plmht(1,:) = SUM(fl_inp%plmht,1)/REAL(fl_inp%update_times)
 
 		! Allocate the emissions array
 		ALLOCATE(fl_out%ptemis(fl_out%update_times,fl_out%nstk,fl_out%nspec))
