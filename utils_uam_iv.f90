@@ -204,13 +204,13 @@ SUBROUTINE lintrans(fl_inp, fl_out, mat_file)
 END SUBROUTINE lintrans
 
 !	------------------------------------------------------------------------------------------
-!	lintrans
-!		Applies a linear transformation to the species of a UAM-IV type object
+!	concatenate
+!		Takes a set of UAM-IV objects and concatenates them in time into a new object
 !	------------------------------------------------------------------------------------------
 SUBROUTINE concatenate(fl_inp, fl_out)
 
 	! UAM-IV object
-	TYPE(UAM_IV), INTENT(IN) :: fl_inp(:)		! Input UAM-IV object
+	TYPE(UAM_IV), ALLOCATABLE, INTENT(IN) :: fl_inp(:)		! Input UAM-IV object
 	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
 
 	! Output frames
@@ -280,5 +280,54 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	END SELECT
 
 END SUBROUTINE concatenate
+
+!	------------------------------------------------------------------------------------------
+!	average
+!		Takes an UAM-IV object and averages it over time
+!	------------------------------------------------------------------------------------------
+SUBROUTINE concatenate(fl_inp, fl_out)
+
+	! UAM-IV object
+	TYPE(UAM_IV), INTENT(IN) :: fl_inp			! Input UAM-IV object
+	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
+
+	! ------------------------------------------------------------------------------------------
+	! Entry Point
+
+	! Test for species list allocation, don't work with an empty object
+	IF (.NOT. ALLOCATED(fl_inp%c_spname)) THEN
+		WRITE(0,*) 'The species list was not allocated'
+		CALL EXIT(2)
+	END IF
+
+	! Clone the header
+	CALL clone_header(fl_inp, fl_out)
+	! Clone the species
+	fl_out%spname = fl_inp%spname
+	fl_out%c_spname = fl_inp%c_spname
+
+	! Allocate the time headers
+	ALLOCATE(fl_out%ibgdat(1),fl_out%iendat(1))
+	ALLOCATE(fl_out%nbgtim(1),fl_out%nentim(1))
+
+	! ------------------------------------------------------------------------------------------
+	! Do files by ftype
+	SELECT CASE (fl_inp%ftype)
+	CASE ('EMISSIONS ')
+		! Allocate the emissions array
+		ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,1,fl_out%nspec))
+		! Get the time variant headers
+		fl_out%ibgdat(1) = fl_inp%ibgdat(1)
+		fl_out%iendat(1) = fl_inp%iendat(fl_inp%update_times)
+		fl_out%nbgtim(1) = fl_inp%nbgtim(1)
+		fl_out%nentim(1) = fl_inp%nentim(fl_inp%update_times)
+		! Get the emissions
+		fl_out%aemis(:,:,1,:) = SUM(fl_inp%aemis,3)/fl_inp%update_times
+	CASE DEFAULT
+		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
+	END SELECT
+
+END SUBROUTINE concatenate
+
 
 END MODULE utils_UAM_IV
