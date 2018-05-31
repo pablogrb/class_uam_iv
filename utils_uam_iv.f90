@@ -10,6 +10,8 @@ IMPLICIT NONE
 
 ! Public methods
 PUBLIC :: clone_header
+PUBLIC :: lintrans
+PUBLIC :: concatenate
 
 CONTAINS
 
@@ -17,7 +19,6 @@ CONTAINS
 !	clone_header
 !		Copies the header of an UAM-IV type object into another
 !	------------------------------------------------------------------------------------------
-
 SUBROUTINE clone_header(fl_inp, fl_out)
 
 	! UAM-IV objects for IO
@@ -67,15 +68,14 @@ END SUBROUTINE
 !	lintrans
 !		Applies a linear transformation to the species of a UAM-IV type object
 !	------------------------------------------------------------------------------------------
-
-SUBROUTINE lintrans(fl_inp, mat_file)
+SUBROUTINE lintrans(fl_inp, fl_out, mat_file)
 
 	! UAM-IV object
-	TYPE(UAM_IV), INTENT(INOUT) :: fl_inp			! Input UAM-IV object
-	TYPE(UAM_IV) :: fl_out							! Dummy intermediate, cloned to fl_inp for output
-	
+	TYPE(UAM_IV), INTENT(IN) :: fl_inp			! Input UAM-IV object
+	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
+
 	! Conversion matrix
-	CHARACTER(LEN=265) :: mat_file					! Matrix file name
+	CHARACTER(LEN=265), INTENT(IN) :: mat_file		! Matrix file name
 	INTEGER :: mat_unit								! Matrix file unit
 	INTEGER :: n_out_spec							! Number of output species
 	CHARACTER(LEN=10), ALLOCATABLE :: s_inp_spec(:)	! Species array of the input UAM_IV file
@@ -192,12 +192,93 @@ SUBROUTINE lintrans(fl_inp, mat_file)
 !		End of the parallel section
 !$OMP 	END PARALLEL
 
+
+	! ------------------------------------------------------------------------------------------
+	! Unsupported ftypes
+	CASE DEFAULT
+		WRITE(0,*) 'File type ', TRIM(fl_inp%ftype), ' is not supported'
+		CALL EXIT(1)
+
 	END SELECT
 
-	! Update the original object for return
-	! Clone the objects
-	fl_inp = fl_out
-
 END SUBROUTINE lintrans
+
+!	------------------------------------------------------------------------------------------
+!	lintrans
+!		Applies a linear transformation to the species of a UAM-IV type object
+!	------------------------------------------------------------------------------------------
+SUBROUTINE concatenate(fl_inp, fl_out)
+
+	! UAM-IV object
+	TYPE(UAM_IV), INTENT(IN) :: fl_inp(:)		! Input UAM-IV object
+	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
+
+	! Output frames
+	INTEGER :: n_frames							! Number of output frames
+
+	! Counters
+	INTEGER :: i_fl
+
+	! ------------------------------------------------------------------------------------------
+	! Entry Point
+
+	! Check the input file array
+	IF (RANK(fl_inp) > 1) THEN
+		WRITE(0,*) 'The input UAM-IV object array must be a vector'
+		CALL EXIT(1)
+	END IF
+
+	! Check the files
+	DO i_fl = 1, SIZE(fl_inp)
+		! Test for species list allocation, don't work with an empty object
+		IF (.NOT. ALLOCATED(fl_inp(i_fl)%c_spname)) THEN
+			WRITE(0,*) 'The species list was not allocated'
+			CALL EXIT(2)
+		END IF
+		! Check for ftype
+		IF (fl_inp(1)%ftype .NE. fl_inp(i_fl)%ftype) THEN
+			WRITE(0,*) 'All UAM-IV objects must be of the same type'
+		END IF
+	END DO
+
+	! Get the total number of frames
+	n_frames = 0
+	DO i_fl = 1, SIZE(fl_inp)
+		n_frames = n_frames + fl_inp(i_fl)%update_times
+	END DO
+
+	! Clone the header
+	CALL clone_header(fl_inp(1), fl_out)
+	! Clone the species
+	fl_out%spname = fl_inp(1)%spname
+	fl_out%c_spname = fl_inp(1)%c_spname
+
+	! Allocate the time headers
+	ALLOCATE(fl_out%ibgdat(n_frames),fl_out%iendat(n_frames))
+	ALLOCATE(fl_out%nbgtim(n_frames),fl_out%nentim(n_frames))
+
+	! ------------------------------------------------------------------------------------------
+	! Do files by ftype
+	SELECT CASE (fl_inp(1)%ftype)
+	CASE ('EMISSIONS ')
+		! Allocate the emissions array
+		ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,n_frames,fl_out%nspec))
+		! Work though the files
+		DO i_fl = 1, SIZE(fl_inp)
+			WRITE(*,'(A,I2,A,I2,A)') 'Working on', i_fl, 'of', SIZE(fl_inp),'files'
+		END DO
+		! Get the time variant headers
+		fl_out%ibgdat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%ibgdat
+		fl_out%iendat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%iendat
+		fl_out%nbgtim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nbgtim
+		fl_out%nentim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nentim
+		! Get the emissions
+		!            x y frames                species
+		fl_out%aemis(:,:,24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%aemis
+	CASE DEFAULT
+		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp(1)%ftype), ' is not supported'
+	END SELECT
+
+END SUBROUTINE concatenate
 
 END MODULE utils_UAM_IV
