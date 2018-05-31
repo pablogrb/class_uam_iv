@@ -10,6 +10,7 @@ IMPLICIT NONE
 
 ! Public methods
 PUBLIC :: clone_header
+PUBLIC :: clone_species
 PUBLIC :: lintrans
 PUBLIC :: concatenate
 PUBLIC :: average
@@ -371,7 +372,7 @@ END SUBROUTINE average
 
 
 !	------------------------------------------------------------------------------------------
-!	average
+!	totalize
 !		Takes an UAM-IV object and totalizes it over time
 !	------------------------------------------------------------------------------------------
 SUBROUTINE totalize(fl_inp, fl_out)
