@@ -298,7 +298,7 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 		fl_out%aemis = 0
 		! Work though the files
 		DO i_fl = 1, SIZE(fl_inp)
-			WRITE(*,'(A,I2,A,I2,A)') 'Working on', i_fl, ' of ', SIZE(fl_inp),' files'
+			WRITE(*,'(A,I2,A,I2,A)') 'Working on ', i_fl, ' of ', SIZE(fl_inp),' files'
 			! Get the time variant headers
 			fl_out%ibgdat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%ibgdat
 			fl_out%iendat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%iendat
@@ -311,7 +311,49 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 			DO i_sp = 1, fl_inp(i_fl)%nspec
 				fl_out%aemis(:,:,24*(i_fl-1)+1:24*i_fl,i_sp) = fl_inp(i_fl)%aemis(:,:,:,i_sp)
 			END DO
-			WRITE(*,'(A,I2,A,I2)') 'Done with file', i_fl, ' of ', SIZE(fl_inp)
+		END DO
+	CASE ('PTSOURCE ' )
+		! Get the number of stacks
+		fl_out%nstk = fl_inp(1)%nstk
+		! Allocate the stack parameter arrays
+		ALLOCATE(fl_out%xstk(fl_out%nstk), fl_out%ystk(fl_out%nstk))
+		ALLOCATE(fl_out%hstk(fl_out%nstk), fl_out%dstk(fl_out%nstk))
+		ALLOCATE(fl_out%tstk(fl_out%nstk), fl_out%vstk(fl_out%nstk))
+		! Clone the stack parameter arrays
+		fl_out%xstk = fl_inp(1)%xstk
+		fl_out%ystk = fl_inp(1)%ystk
+		fl_out%hstk = fl_inp(1)%hstk
+		fl_out%dstk = fl_inp(1)%dstk
+		fl_out%tstk = fl_inp(1)%tstk
+		fl_out%vstk = fl_inp(1)%vstk
+
+		! Allocate the stack description arrays
+		ALLOCATE(fl_out%icell(fl_out%update_times,fl_out%nstk))
+		ALLOCATE(fl_out%jcell(fl_out%update_times,fl_out%nstk))
+		ALLOCATE(fl_out%kcell(fl_out%update_times,fl_out%nstk))
+		ALLOCATE(fl_out%flow (fl_out%update_times,fl_out%nstk))
+		ALLOCATE(fl_out%plmht(fl_out%update_times,fl_out%nstk))
+		! Allocate the emissions array
+		ALLOCATE(fl_out%ptemis(fl_out%update_times,fl_out%nstk,fl_out%nspec))
+
+		! Work thorugh the files
+		DO i_fl = 1, SIZE(fl_inp)
+			WRITE(*,'(A,I2,A,I2,A)') 'Working on ', i_fl, ' of ', SIZE(fl_inp),' files'
+			! Get the time variant headers
+			fl_out%ibgdat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%ibgdat
+			fl_out%iendat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%iendat
+			fl_out%nbgtim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nbgtim
+			fl_out%nentim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nentim
+			! Get the stack description arrays
+			fl_out%icell(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%icell
+			fl_out%jcell(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%jcell
+			fl_out%kcell(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%kcell
+			fl_out%flow (24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%flow
+			fl_out%plmht(24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%plmht
+			! Get the emissions
+			DO i_sp = 1, fl_inp(i_fl)%nspec
+				fl_out%ptemis(24*(i_fl-1)+1:24*i_fl,:,i_sp) = fl_inp(i_fl)%ptemis(:,:,i_sp)
+			END DO
 		END DO
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp(1)%ftype), ' is not supported'
@@ -329,47 +371,28 @@ END SUBROUTINE concatenate
 !	------------------------------------------------------------------------------------------
 SUBROUTINE average(fl_inp, fl_out)
 
-	! UAM-IV object
+	! UAM-IV objects
 	TYPE(UAM_IV), INTENT(IN) :: fl_inp			! Input UAM-IV object
 	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
 
 	! ------------------------------------------------------------------------------------------
 	! Entry Point
-
-	! Test for species list allocation, don't work with an empty object
-	IF (.NOT. ALLOCATED(fl_inp%c_spname)) THEN
-		WRITE(0,*) 'The species list was not allocated'
-		CALL EXIT(2)
-	END IF
-
-	! Clone the header
-	CALL clone_header(fl_inp, fl_out)
-	! Clone the species
-	CALL clone_species(fl_inp, fl_out)
-
-	! Allocate the time headers
-	ALLOCATE(fl_out%ibgdat(1),fl_out%iendat(1))
-	ALLOCATE(fl_out%nbgtim(1),fl_out%nentim(1))
+	CALL totalize(fl_inp, fl_out)
 
 	! ------------------------------------------------------------------------------------------
 	! Do files by ftype
 	SELECT CASE (fl_inp%ftype)
 	CASE ('EMISSIONS ')
-		! Allocate the emissions array
-		ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,1,fl_out%nspec))
-		! Get the time variant headers
-		fl_out%ibgdat(1) = fl_inp%ibgdat(1)
-		fl_out%iendat(1) = fl_inp%iendat(fl_inp%update_times)
-		fl_out%nbgtim(1) = fl_inp%nbgtim(1)
-		fl_out%nentim(1) = fl_inp%nentim(fl_inp%update_times)
-		! Get the emissions
-		fl_out%aemis(:,:,1,:) = SUM(fl_inp%aemis,3)/fl_inp%update_times
+		! Average the totals
+		fl_out%aemis = fl_out%aemis/fl_inp%update_times
+	CASE ('PTSOURCE  ')
+		! Average the totals
+		fl_out%ptemis = fl_out%ptemis/fl_inp%update_times
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
 	END SELECT
 
 END SUBROUTINE average
-
 
 !	------------------------------------------------------------------------------------------
 !	totalize
@@ -413,6 +436,44 @@ SUBROUTINE totalize(fl_inp, fl_out)
 		fl_out%nentim(1) = fl_inp%nentim(fl_inp%update_times)
 		! Get the emissions
 		fl_out%aemis(:,:,1,:) = SUM(fl_inp%aemis,3)
+	CASE ('PTSOURCE  ')
+		! Get the time variant headers
+		fl_out%ibgdat(1) = fl_inp%ibgdat(1)
+		fl_out%iendat(1) = fl_inp%iendat(fl_inp%update_times)
+		fl_out%nbgtim(1) = fl_inp%nbgtim(1)
+		fl_out%nentim(1) = fl_inp%nentim(fl_inp%update_times)
+
+		! Get the number of stacks
+		fl_out%nstk = fl_inp%nstk
+		! Allocate the stack parameter arrays
+		ALLOCATE(fl_out%xstk(fl_out%nstk), fl_out%ystk(fl_out%nstk))
+		ALLOCATE(fl_out%hstk(fl_out%nstk), fl_out%dstk(fl_out%nstk))
+		ALLOCATE(fl_out%tstk(fl_out%nstk), fl_out%vstk(fl_out%nstk))
+		! Clone the stack parameter arrays
+		fl_out%xstk = fl_inp%xstk
+		fl_out%ystk = fl_inp%ystk
+		fl_out%hstk = fl_inp%hstk
+		fl_out%dstk = fl_inp%dstk
+		fl_out%tstk = fl_inp%tstk
+		fl_out%vstk = fl_inp%vstk
+
+		! Allocate the stack description arrays
+		ALLOCATE(fl_out%icell(1,fl_out%nstk))
+		ALLOCATE(fl_out%jcell(1,fl_out%nstk))
+		ALLOCATE(fl_out%kcell(1,fl_out%nstk))
+		ALLOCATE(fl_out%flow (1,fl_out%nstk))
+		ALLOCATE(fl_out%plmht(1,fl_out%nstk))
+		! Calculate the average stack description
+		fl_out%icell(1,:) = SUM(fl_inp%icell,1)/fl_inp%update_times
+		fl_out%jcell(1,:) = SUM(fl_inp%jcell,1)/fl_inp%update_times
+		fl_out%kcell(1,:) = SUM(fl_inp%kcell,1)/fl_inp%update_times
+		fl_out%flow (1,:) = SUM(fl_inp%flow ,1)/fl_inp%update_times
+		fl_out%plmht(1,:) = SUM(fl_inp%plmht,1)/fl_inp%update_times
+
+		! Allocate the emissions array
+		ALLOCATE(fl_out%ptemis(fl_out%update_times,fl_out%nstk,fl_out%nspec))
+		! Get the emissions
+		fl_out%ptemis(1,:,:) = SUM(fl_out%ptemis,1)
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
 	END SELECT
