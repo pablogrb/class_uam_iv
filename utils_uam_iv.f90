@@ -12,6 +12,8 @@ IMPLICIT NONE
 PUBLIC :: clone_header
 PUBLIC :: lintrans
 PUBLIC :: concatenate
+PUBLIC :: average
+PUBLIC :: totalize
 
 CONTAINS
 
@@ -63,6 +65,34 @@ SUBROUTINE clone_header(fl_inp, fl_out)
 	fl_out%ny1 = fl_inp%ny1
 
 END SUBROUTINE
+
+!	------------------------------------------------------------------------------------------
+!	clone_species
+!		Copies the header of an UAM-IV type object into another
+!	------------------------------------------------------------------------------------------
+SUBROUTINE clone_species(fl_inp, fl_out)
+
+	! UAM-IV objects for IO
+	TYPE(UAM_IV), INTENT(IN) :: fl_inp
+	TYPE(UAM_IV), INTENT(INOUT) :: fl_out
+
+	! ------------------------------------------------------------------------------------------
+	! Entry Point
+
+	! Check the inputs
+	! Test for species list allocation, don't work with an empty object
+	IF (.NOT. ALLOCATED(fl_inp%c_spname)) THEN
+		WRITE(0,*) 'The species list was not allocated'
+		CALL EXIT(1)
+	END IF
+
+	! Clone the species
+	ALLOCATE(fl_out%spname(10,fl_inp%nspec))
+	ALLOCATE(fl_out%c_spname(fl_inp%nspec))
+	fl_out%spname = fl_inp%spname
+	fl_out%c_spname = fl_inp%c_spname
+
+END SUBROUTINE clone_species
 
 !	------------------------------------------------------------------------------------------
 !	lintrans
@@ -218,12 +248,13 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 
 	! Counters
 	INTEGER :: i_fl
+	INTEGER :: i_sp
 
 	! ------------------------------------------------------------------------------------------
 	! Entry Point
 
 	! Check the input file array
-	IF (RANK(fl_inp) > 1) THEN
+	IF (SIZE(SHAPE(fl_inp)) > 1) THEN
 		WRITE(0,*) 'The input UAM-IV object array must be a vector'
 		CALL EXIT(1)
 	END IF
@@ -249,9 +280,9 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 
 	! Clone the header
 	CALL clone_header(fl_inp(1), fl_out)
+	fl_out%update_times = n_frames
 	! Clone the species
-	fl_out%spname = fl_inp(1)%spname
-	fl_out%c_spname = fl_inp(1)%c_spname
+	CALL clone_species(fl_inp(1), fl_out)
 
 	! Allocate the time headers
 	ALLOCATE(fl_out%ibgdat(n_frames),fl_out%iendat(n_frames))
@@ -263,21 +294,31 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	CASE ('EMISSIONS ')
 		! Allocate the emissions array
 		ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,n_frames,fl_out%nspec))
+		fl_out%aemis = 0
 		! Work though the files
 		DO i_fl = 1, SIZE(fl_inp)
-			WRITE(*,'(A,I2,A,I2,A)') 'Working on', i_fl, 'of', SIZE(fl_inp),'files'
+			WRITE(*,'(A,I2,A,I2,A)') 'Working on', i_fl, ' of ', SIZE(fl_inp),' files'
+			! Get the time variant headers
+			fl_out%ibgdat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%ibgdat
+			fl_out%iendat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%iendat
+			fl_out%nbgtim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nbgtim
+			fl_out%nentim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nentim
+			! Get the emissions
+			!            x y frames                species
+			! fl_out%aemis(:,:,24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%aemis
+			! This segfaults mysteriously on some files
+			DO i_sp = 1, fl_inp(i_fl)%nspec
+				fl_out%aemis(:,:,24*(i_fl-1)+1:24*i_fl,i_sp) = fl_inp(i_fl)%aemis(:,:,:,i_sp)
+			END DO
+			WRITE(*,'(A,I2,A,I2)') 'Done with file', i_fl, ' of ', SIZE(fl_inp)
 		END DO
-		! Get the time variant headers
-		fl_out%ibgdat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%ibgdat
-		fl_out%iendat(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%iendat
-		fl_out%nbgtim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nbgtim
-		fl_out%nentim(24*(i_fl-1)+1:24*i_fl) = fl_inp(i_fl)%nentim
-		! Get the emissions
-		!            x y frames                species
-		fl_out%aemis(:,:,24*(i_fl-1)+1:24*i_fl,:) = fl_inp(i_fl)%aemis
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp(1)%ftype), ' is not supported'
 	END SELECT
+
+	! Update the end dates
+	fl_out%jdate  = fl_out%iendat(n_frames)
+	fl_out%endtim = fl_out%nentim(n_frames)
 
 END SUBROUTINE concatenate
 
@@ -285,7 +326,7 @@ END SUBROUTINE concatenate
 !	average
 !		Takes an UAM-IV object and averages it over time
 !	------------------------------------------------------------------------------------------
-SUBROUTINE concatenate(fl_inp, fl_out)
+SUBROUTINE average(fl_inp, fl_out)
 
 	! UAM-IV object
 	TYPE(UAM_IV), INTENT(IN) :: fl_inp			! Input UAM-IV object
@@ -303,8 +344,7 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	! Clone the header
 	CALL clone_header(fl_inp, fl_out)
 	! Clone the species
-	fl_out%spname = fl_inp%spname
-	fl_out%c_spname = fl_inp%c_spname
+	CALL clone_species(fl_inp, fl_out)
 
 	! Allocate the time headers
 	ALLOCATE(fl_out%ibgdat(1),fl_out%iendat(1))
@@ -327,7 +367,55 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
 	END SELECT
 
-END SUBROUTINE concatenate
+END SUBROUTINE average
 
+
+!	------------------------------------------------------------------------------------------
+!	average
+!		Takes an UAM-IV object and totalizes it over time
+!	------------------------------------------------------------------------------------------
+SUBROUTINE totalize(fl_inp, fl_out)
+
+	! UAM-IV object
+	TYPE(UAM_IV), INTENT(IN) :: fl_inp			! Input UAM-IV object
+	TYPE(UAM_IV), INTENT(OUT) :: fl_out			! Dummy intermediate, cloned to fl_inp for output
+
+	! ------------------------------------------------------------------------------------------
+	! Entry Point
+
+	! Test for species list allocation, don't work with an empty object
+	IF (.NOT. ALLOCATED(fl_inp%c_spname)) THEN
+		WRITE(0,*) 'The species list was not allocated'
+		CALL EXIT(2)
+	END IF
+
+	! Clone the header
+	CALL clone_header(fl_inp, fl_out)
+	fl_out%update_times = 1
+	! Clone the species
+	CALL clone_species(fl_inp, fl_out)
+
+	! Allocate the time headers
+	ALLOCATE(fl_out%ibgdat(1),fl_out%iendat(1))
+	ALLOCATE(fl_out%nbgtim(1),fl_out%nentim(1))
+
+	! ------------------------------------------------------------------------------------------
+	! Do files by ftype
+	SELECT CASE (fl_inp%ftype)
+	CASE ('EMISSIONS ')
+		! Allocate the emissions array
+		ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,1,fl_out%nspec))
+		! Get the time variant headers
+		fl_out%ibgdat(1) = fl_inp%ibgdat(1)
+		fl_out%iendat(1) = fl_inp%iendat(fl_inp%update_times)
+		fl_out%nbgtim(1) = fl_inp%nbgtim(1)
+		fl_out%nentim(1) = fl_inp%nentim(fl_inp%update_times)
+		! Get the emissions
+		fl_out%aemis(:,:,1,:) = SUM(fl_inp%aemis,3)
+	CASE DEFAULT
+		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp%ftype), ' is not supported'
+	END SELECT
+
+END SUBROUTINE totalize
 
 END MODULE utils_UAM_IV
