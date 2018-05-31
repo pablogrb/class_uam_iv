@@ -15,6 +15,7 @@ PUBLIC :: lintrans
 PUBLIC :: concatenate
 PUBLIC :: average
 PUBLIC :: totalize
+PRIVATE :: stk_index
 
 CONTAINS
 
@@ -247,6 +248,13 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	! Output frames
 	INTEGER :: n_frames							! Number of output frames
 
+	! Accounting for multiple stack lists
+	INTEGER :: uniques							! Number of unique stack lists
+	INTEGER, ALLOCATABLE :: stk_fl_index(:)		! Vector of stack list index, each element indicates
+												! 	which stack list corresponds to each file
+												!	If all share the same, all elements are 1
+												!	If all are different , all elements are i_fl
+
 	! Counters
 	INTEGER :: i_fl
 	INTEGER :: i_sp
@@ -265,11 +273,16 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 		! Test for species list allocation, don't work with an empty object
 		IF (.NOT. ALLOCATED(fl_inp(i_fl)%c_spname)) THEN
 			WRITE(0,*) 'The species list was not allocated'
-			CALL EXIT(2)
+			CALL EXIT(1)
 		END IF
 		! Check for ftype
 		IF (fl_inp(1)%ftype .NE. fl_inp(i_fl)%ftype) THEN
 			WRITE(0,*) 'All UAM-IV objects must be of the same type'
+			CALL EXIT(2)
+		END IF
+		! Check the speclists
+		IF (.NOT. ALL(fl_inp(1)%c_spname .EQ. fl_inp(i_fl)%c_spname)) THEN
+			WRITE(0,*) 'All UAM-IV objects must have the same species list'
 		END IF
 	END DO
 
@@ -317,6 +330,10 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	CASE ('PTSOURCE ' )
 		! Get the number of stacks
 		fl_out%nstk = fl_inp(1)%nstk
+		! ALLOCATE(stk_fl_index(SIZE(fl_inp)))
+		! stk_fl_index = 0
+		! CALL stk_index(fl_inp,stk_fl_index, uniques)
+
 		! Allocate the stack parameter arrays
 		ALLOCATE(fl_out%xstk(fl_out%nstk), fl_out%ystk(fl_out%nstk))
 		ALLOCATE(fl_out%hstk(fl_out%nstk), fl_out%dstk(fl_out%nstk))
@@ -359,6 +376,7 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 			DO i_sp = 1, fl_inp(i_fl)%nspec
 				fl_out%ptemis(24*(i_fl-1)+1:24*i_fl,:,i_sp) = fl_inp(i_fl)%ptemis(:,:,i_sp)
 			END DO
+			! WRITE(*,*) SUM(fl_out%ptemis)
 		END DO
 	CASE DEFAULT
 		WRITE(0,*) 'The UAM-IV type ', TRIM(fl_inp(1)%ftype), ' is not supported'
@@ -369,6 +387,82 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	fl_out%endtim = fl_out%nentim(n_frames)
 
 END SUBROUTINE concatenate
+
+RECURSIVE SUBROUTINE stk_index(fl_inp, stk_fl_index, uniques, i_carry)
+
+	! UAM-IV object array
+	TYPE(UAM_IV), ALLOCATABLE, INTENT(IN) :: fl_inp(:)		! Input UAM-IV object
+
+	! Ouput index vector
+	INTEGER, ALLOCATABLE, INTENT(INOUT) :: stk_fl_index(:)
+	INTEGER :: search_size
+	INTEGER :: search_start
+	LOGICAL :: carry_switch
+
+	! Uniques
+	INTEGER, INTENT(INOUT) :: uniques
+	LOGICAL :: uniques_switch
+
+	! Counters
+	INTEGER :: i_fl
+	INTEGER, INTENT(IN), OPTIONAL :: i_carry
+	INTEGER :: l_carry
+
+	! ------------------------------------------------------------------------------------------
+	! Entry Point
+
+	! First call shouldn't have an i_carry index
+	IF (PRESENT(i_carry)) THEN
+		l_carry = i_carry
+	ELSE
+		l_carry = 1
+		uniques = 0
+	END IF
+
+	! Get the current search size and start
+	search_size = SIZE(fl_inp(l_carry:SIZE(fl_inp)))
+	search_start = l_carry
+
+	! Allocate the return vector on the first call
+	IF (.NOT. ALLOCATED(stk_fl_index)) THEN
+		ALLOCATE(stk_fl_index(search_size))
+		stk_fl_index = 0
+	END IF
+
+	! Set the carry_switch
+	carry_switch = .TRUE.
+	! Set the uniques switch
+	uniques_switch = .TRUE.
+	! Loop through the files
+	DO i_fl = search_start, SIZE(fl_inp)
+		! Check if the stack parameters are identical
+		IF (ALL(fl_inp(search_start)%xstk .EQ. fl_inp(i_fl)%xstk .AND. &
+			   &fl_inp(search_start)%ystk .EQ. fl_inp(i_fl)%ystk .AND. &
+			   &fl_inp(search_start)%hstk .EQ. fl_inp(i_fl)%hstk .AND. &
+			   &fl_inp(search_start)%dstk .EQ. fl_inp(i_fl)%dstk .AND. &
+			   &fl_inp(search_start)%tstk .EQ. fl_inp(i_fl)%tstk .AND. &
+			   &fl_inp(search_start)%vstk .EQ. fl_inp(i_fl)%vstk)) THEN
+			IF (stk_fl_index(i_fl) == 0) THEN
+				stk_fl_index(i_fl) = search_start
+				IF (uniques_switch) THEN
+					uniques_switch = .FALSE.
+					uniques = uniques + 1
+				END IF
+			END IF
+		ELSE IF (carry_switch) THEN
+			carry_switch = .FALSE.
+			l_carry = i_fl
+		! 	stk_fl_index(i_fl) = 0
+		! ELSE
+		! 	stk_fl_index(i_fl) = 0
+		END IF
+	END DO
+
+	IF (.NOT. carry_switch) THEN
+		CALL stk_index(fl_inp, stk_fl_index, uniques, l_carry)
+	END IF
+
+END SUBROUTINE stk_index
 
 !	------------------------------------------------------------------------------------------
 !	average
@@ -541,7 +635,7 @@ SUBROUTINE flatten(fl_inp, fl_out)
 	! Allocate the emissions array and startup
 	ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,fl_out%update_times,fl_out%nspec))
 	fl_out%aemis = 0
-	WRITE(*,*) SHAPE(fl_out%aemis)
+	! WRITE(*,*) SHAPE(fl_out%aemis)
 
 	! Loop through stacks
 	DO i_stk = 1, fl_inp%nstk
@@ -550,8 +644,8 @@ SUBROUTINE flatten(fl_inp, fl_out)
 		stk_y = INT((fl_inp%ystk(i_stk)-fl_out%utmy)/(fl_out%dy))+1
 		! Only add if in grid
 		IF (stk_x >= 1 .AND. stk_y <= fl_out%nx .AND. &
-		   &stk_y >= 1 .AND. stk_y <= fl_out%ny) THEN	
-	   		! WRITE(*,*) stk_x, stk_y, fl_out%aemis(stk_x,stk_y,1,1), fl_inp%ptemis(1,i_stk,1)
+		   &stk_y >= 1 .AND. stk_y <= fl_out%ny) THEN
+			! WRITE(*,*) stk_x, stk_y, fl_out%aemis(stk_x,stk_y,1,1), fl_inp%ptemis(1,i_stk,1)
 			! Loop through species
 			DO i_sp = 1, fl_out%nspec
 				! Add concentrations to the corresponding cell
@@ -559,7 +653,6 @@ SUBROUTINE flatten(fl_inp, fl_out)
 					& fl_out%aemis(stk_x,stk_y,:,i_sp) + fl_inp%ptemis(:,i_stk,i_sp)
 			END DO
 		END IF
-		
 	END DO
 
 END SUBROUTINE flatten
