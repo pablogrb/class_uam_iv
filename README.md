@@ -2,6 +2,8 @@
 
 The UAM\_IV file module defines a *class like* derived type that implements the UAM\_IV file format as defined in Ramboll Environ's CAMx. Provides an *object like* data structure for all types and *method like* subroutines for IO. It was inspired by Dr. Barron Henderson's [pseudonetcdf](https://github.com/barronh/pseudonetcdf) python CAMx compatibly layer and serves as a modern Fortran IO support module.
 
+An additional utilites module contains a group of programs that facilitate the manipulation and conversion of UAM\_IV files.
+
 This module was developed by [Pablo Garcia](pablogar@andrew.cmu.edu) at the Center for Atmospheric Particle Studies at Carnegie Mellon University.
 
 ## Example usage
@@ -13,13 +15,16 @@ USE class_UAM_IV
 IMPLICIT NONE
 TYPE(UAM_IV) :: fl
 CHARACTER(LEN=256) :: in_file
+CHARACTER(LEN=256) :: out_file
 
+    in_file = "emis.bin"
     CALL read_uamfile(fl, in_file)
 
-    ! This multiplies all emissions by 1.5
-    fl%aemis = fl%aemis * 1.5
+    ! This multiplies all emissions by 2
+    fl%aemis = fl%aemis * 2
 
-    CALL write_uamfile(fl, in_file)
+    out_file = "emis2.bin"
+    CALL write_uamfile(fl, out_file)
 
 END PROGRAM example
 ```
@@ -140,18 +145,6 @@ CALL fl%write(in_file, unit)
 * `in_file`: Path to the input file. If not provided the method will use the value of the `in_file` property of the `fl` object.
 * `unit`: Fortran unit for IO. If not provided the method will assign a Fortran unit to the `unit` property of the `fl` object automatically.
 
-### Utilities
-#### Subroutine `clone_header`
-Copies the main header information from an source `UAM_IV`  *object like* variable into an destination variable of the same type.
-
-```
-#!Fortran
-CALL clone_header(fl_inp, fl_out)
-```
-##### Required
-* `fl_inp`: Source `UAM_IV`  *object like* variable
-* `fl_out`: Destination `UAM_IV`  *object like* variable
-
 #### Subroutine `inquire_header`
 Reads the main header of a UAM\_IV CAMx file without reading the data frames, produces no terminal output.
 
@@ -165,6 +158,8 @@ CALL inquire_header(fl, in_file, unit)
 ##### Optional
 * `in_file`: Path to the input file. If not provided the method will use the value of the `in_file` property of the `fl` object.
 * `unit`: Fortran unit for IO. If not provided the method will assign a Fortran unit to the `unit` property of the `fl` object automatically.
+
+### Indexing
 
 #### Function `fl_spindex`, method `spindex`
 Ouputs the species index corresponding to a provided species name string that matches one of the species names in the c_spname array
@@ -180,3 +175,90 @@ terp_emis = fl%aemis(:,:,:,fl%spindex(spec))
 ##### Required
 * `fl`: A `UAM_IV` type *object like* variable
 * `spec`: Species name, must be in the c_spname list
+
+## Utilities
+These utilities are defined in the `utils_uam_iv` module
+
+### Cloning
+
+#### Subroutine `clone_header`
+Copies the main header information from an source `UAM_IV` *object like* variable into a destination variable of the same type.
+
+```
+#!Fortran
+CALL clone_header(fl_inp, fl_out)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable
+* `fl_out`: Destination `UAM_IV` *object like* variable
+
+#### Subroutine `clone_species`
+Copies the species lists of a `UAM_IV` *object like* variable into a destination variable of the same type.
+
+```
+#!Fortran
+CALL clone_header(fl_inp, fl_out)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable
+* `fl_out`: Destination `UAM_IV` *object like* variable
+
+### Transformation
+
+#### Subroutine `lintrans`
+Applies a linear transformation from an input matrix file to the species axis of a `UAM_IV` *object like* variable
+
+```
+#!Fortran
+CALL lintrans(fl_inp, fl_out, mat_file)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable
+* `fl_out`: Destination `UAM_IV` *object like* variable
+* `mat_file`: Linear transformation matrix for species
+
+### Aggregation
+
+#### Subroutine `concatenate`
+Takes a set of `UAM_IV` *object like* variables and concatenates them in time into a new object. For example, to create a weekly file from daily files.
+
+```
+#!Fortran
+CALL concatenate(fl_inp, fl_out)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable vector
+* `fl_out`: Destination `UAM_IV` *object like* variable
+
+#### Subroutine `average`
+Takes a `UAM_IV` *object like* variable and averages it over the time axis.
+
+```
+#!Fortran
+CALL average(fl_inp, fl_out)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable
+* `fl_out`: Destination `UAM_IV` *object like* variable
+
+#### Subroutine `totalize`
+Takes a `UAM_IV` *object like* variable and totalizes it over the time axis.
+
+```
+#!Fortran
+CALL totalize(fl_inp, fl_out)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable
+* `fl_out`: Destination `UAM_IV` *object like* variable
+
+#### Subroutine `flatten`
+Takes a `UAM_IV` *object like* variable of the `PTSOURCE  ` `ftype`, i.e. a Point Source emissions file, and adds all stack emissions into a `UAM_IV` *object like* variable of the `EMISSIONS` `ftype`, i.e. an Area emissions file.
+
+```
+#!Fortran
+CALL totalize(fl_inp, fl_out)
+```
+##### Required
+* `fl_inp`: Source `UAM_IV` *object like* variable of the `PTSOURCE  ` `ftype`
+* `fl_out`: Destination `UAM_IV` *object like* variable of the `EMISSIONS` `ftype`
