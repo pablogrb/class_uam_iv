@@ -222,46 +222,46 @@ CONTAINS
 
 	END FUNCTION fl_spindex
 
-	SUBROUTINE clone_header(fl_inp, fl_out)
+! 	SUBROUTINE clone_header(fl_inp, fl_out)
 
-		TYPE(UAM_IV), INTENT(IN) :: fl_inp
-		TYPE(UAM_IV), INTENT(INOUT) :: fl_out
+! 		TYPE(UAM_IV), INTENT(IN) :: fl_inp
+! 		TYPE(UAM_IV), INTENT(INOUT) :: fl_out
 
-!		Build the output file header using the header of the first file and the user dates
-		fl_out%ftype  = fl_inp%ftype
-		fl_out%update_times = fl_inp%update_times
-!		Header 1
-		fl_out%fname  = fl_inp%fname
-		fl_out%note   = fl_inp%note
-		fl_out%nseg   = fl_inp%nseg
-		fl_out%nspec  = fl_inp%nspec
-		fl_out%idate  = fl_inp%idate
-		fl_out%begtim = fl_inp%begtim
-		fl_out%jdate  = fl_inp%jdate
-		fl_out%endtim = fl_inp%endtim
-!		Header 2
-		fl_out%orgx = fl_inp%orgx
-		fl_out%orgy = fl_inp%orgy
-		fl_out%iutm = fl_inp%iutm
-		fl_out%utmx = fl_inp%utmx
-		fl_out%utmy = fl_inp%utmy
-		fl_out%dx   = fl_inp%dx
-		fl_out%dy   = fl_inp%dy
-		fl_out%nx   = fl_inp%nx
-		fl_out%ny   = fl_inp%ny
-		fl_out%nz   = fl_inp%nz
-		fl_out%nzlo = fl_inp%nzlo
-		fl_out%nzup = fl_inp%nzup
-		fl_out%hts  = fl_inp%hts
-		fl_out%htl  = fl_inp%htl
-		fl_out%htu  = fl_inp%htu
-!		Header 3
-		fl_out%i1  = fl_inp%i1
-		fl_out%j1  = fl_inp%j1
-		fl_out%nx1 = fl_inp%nx1
-		fl_out%ny1 = fl_inp%ny1
+! !		Build the output file header using the header of the first file and the user dates
+! 		fl_out%ftype  = fl_inp%ftype
+! 		fl_out%update_times = fl_inp%update_times
+! !		Header 1
+! 		fl_out%fname  = fl_inp%fname
+! 		fl_out%note   = fl_inp%note
+! 		fl_out%nseg   = fl_inp%nseg
+! 		fl_out%nspec  = fl_inp%nspec
+! 		fl_out%idate  = fl_inp%idate
+! 		fl_out%begtim = fl_inp%begtim
+! 		fl_out%jdate  = fl_inp%jdate
+! 		fl_out%endtim = fl_inp%endtim
+! !		Header 2
+! 		fl_out%orgx = fl_inp%orgx
+! 		fl_out%orgy = fl_inp%orgy
+! 		fl_out%iutm = fl_inp%iutm
+! 		fl_out%utmx = fl_inp%utmx
+! 		fl_out%utmy = fl_inp%utmy
+! 		fl_out%dx   = fl_inp%dx
+! 		fl_out%dy   = fl_inp%dy
+! 		fl_out%nx   = fl_inp%nx
+! 		fl_out%ny   = fl_inp%ny
+! 		fl_out%nz   = fl_inp%nz
+! 		fl_out%nzlo = fl_inp%nzlo
+! 		fl_out%nzup = fl_inp%nzup
+! 		fl_out%hts  = fl_inp%hts
+! 		fl_out%htl  = fl_inp%htl
+! 		fl_out%htu  = fl_inp%htu
+! !		Header 3
+! 		fl_out%i1  = fl_inp%i1
+! 		fl_out%j1  = fl_inp%j1
+! 		fl_out%nx1 = fl_inp%nx1
+! 		fl_out%ny1 = fl_inp%ny1
 
-	END SUBROUTINE
+! 	END SUBROUTINE
 
 	SUBROUTINE inquire_header(fl,in_file,unit)
 
