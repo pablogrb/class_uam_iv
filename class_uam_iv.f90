@@ -378,6 +378,7 @@ CONTAINS
 			&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
 		! WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
 		! 	&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
+!		Read the third header		
 		READ (fl%unit) fl%i1,fl%j1,fl%nx1,fl%ny1
 
 !		Print the header to terminal
@@ -440,7 +441,10 @@ CONTAINS
 
 ! 		Read the species records
 		READ (fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
-		WRITE(fl%c_spname,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
+		! WRITE(fl%c_spname,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
+		DO i = 1, fl%nspec
+			WRITE(fl%c_spname(i),'(10A1)') (fl%spname(j,i),j=1,10)
+		END DO
 
 !		Print the species list to terminal
 		IF (.NOT. l_silent) THEN
@@ -463,8 +467,8 @@ CONTAINS
 
 ! 		Write the species records
 		WRITE(fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
-		WRITE(*,*) fl%c_spname
-! 		WRITE(*,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
+		! WRITE(*,*) fl%c_spname
+		WRITE(*,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 
 	END SUBROUTINE write_species
 
@@ -709,7 +713,7 @@ CONTAINS
 
 ! 		Write the number of stacks
 		WRITE(fl%unit) ione,fl%nstk
-		WRITE(*,*) ione, fl%nstk, TRIM(fl%in_file)
+		WRITE(*,*) ione, fl%nstk
 
 ! 		Write the stack parameter records
 		WRITE(fl%unit) (fl%xstk(i_stk),fl%ystk(i_stk),fl%hstk(i_stk),fl%dstk(i_stk),&
