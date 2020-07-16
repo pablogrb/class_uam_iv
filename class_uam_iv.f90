@@ -89,6 +89,7 @@ IMPLICIT NONE
 
 ! 	Public methods
 	PUBLIC :: read_uamfile, write_uamfile
+	PUBLIC :: inquire_header
 
 ! 	Private methods
 	PRIVATE :: read_open_file, read_header, read_species
@@ -350,7 +351,7 @@ CONTAINS
 
 		TYPE(UAM_IV), INTENT(INOUT) :: fl
 		INTEGER :: i
-		CHARACTER(LEN=41) :: h1format, h2format
+		CHARACTER(LEN=41) :: h1format, h2format, h3format
 		LOGICAL, INTENT(IN), OPTIONAL :: silent
 		LOGICAL :: l_silent
 
@@ -364,6 +365,7 @@ CONTAINS
 ! 		Set the format strings
 		h1format='(10a1,60a1,/,i2,1x,i3,1x,i6,f6.0,i6,f6.0)'
 		h2format='(2(f16.5,1x),i3,1x,4(f16.5,1x),5i4,3f7.0)'
+		h3format='(4(i3,1x))'
 
 ! 		Read the first header
 		READ (fl%unit) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
@@ -371,23 +373,25 @@ CONTAINS
 		! WRITE(*,h1format) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
 		! 	&fl%endtim
 		WRITE(fl%ftype,'(10a1)') (fl%fname(i),i=1,10)
-		WRITE(*,*) 'File type is ',fl%ftype
+		! WRITE(*,*) 'File type is ',fl%ftype
 
 ! 		Read the second header
 		READ (fl%unit) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
 			&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
 		! WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
 		! 	&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
-!		Read the third header		
+!		Read the third header
 		READ (fl%unit) fl%i1,fl%j1,fl%nx1,fl%ny1
+		! WRITE(*,h3format) fl%i1,fl%j1,fl%nx1,fl%ny1
 
 !		Print the header to terminal
 		IF (.NOT. l_silent) THEN
+			WRITE(*,*) 'File type is ',fl%ftype
 			WRITE(*,h1format) fl%fname,fl%note,fl%nseg,fl%nspec,fl%idate,fl%begtim,fl%jdate,&
 				&fl%endtim
-			WRITE(*,*) 'File type is ',fl%ftype
 			WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
 				&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
+			WRITE(*,h3format) fl%i1,fl%j1,fl%nx1,fl%ny1
 		END IF
 
 	END SUBROUTINE read_header

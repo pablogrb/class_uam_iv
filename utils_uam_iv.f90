@@ -249,8 +249,8 @@ SUBROUTINE concatenate(fl_inp, fl_out)
 	INTEGER :: n_frames							! Number of output frames
 
 	! Accounting for multiple stack lists
-	INTEGER :: uniques							! Number of unique stack lists
-	INTEGER, ALLOCATABLE :: stk_fl_index(:)		! Vector of stack list index, each element indicates
+	! INTEGER :: uniques							! Number of unique stack lists
+	! INTEGER, ALLOCATABLE :: stk_fl_index(:)		! Vector of stack list index, each element indicates
 												! 	which stack list corresponds to each file
 												!	If all share the same, all elements are 1
 												!	If all are different , all elements are i_fl
