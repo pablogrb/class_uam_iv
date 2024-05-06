@@ -7,8 +7,7 @@ An additional utilites module contains a group of programs that facilitate the m
 This module was developed by [Pablo Garcia](pablogar@andrew.cmu.edu) at the Center for Atmospheric Particle Studies at Carnegie Mellon University.
 
 ## Example usage
-```
-#!fortran
+```fortran
 PROGRAM example
 USE class_UAM_IV
 
@@ -112,8 +111,7 @@ The `BOUNDARY` type uses the `UAM_BC_PAR` derived type, its properties are descr
 #### Subroutine: `read_uamfile`, method `read`
 Takes a `UAM_IV` type object and populates its properties with information from a compatible UAM\_IV CAMx file. The file type will be determined automatically and fail gracefully if not recognized.
 
-```
-#!fortran
+```fortran
 ! Subroutince call
 CALL read_uamfile(fl)
 CALL read_uamfile(fl, in_file, unit)
@@ -130,8 +128,7 @@ CALL fl%read(in_file, unit)
 #### Subroutine: `write_uamfile`, method `write`
 Takes a `UAM_IV` type object and writes its properties with to UAM\_IV CAMx file. The file type will be determined by the `ftype` parameter of the input object and fail gracefully if not recognized.
 
-```
-#!fortran
+```fortran
 ! Subroutince call
 CALL write_uamfile(fl)
 CALL write_uamfile(fl, in_file, unit)
@@ -148,8 +145,7 @@ CALL fl%write(in_file, unit)
 #### Subroutine `inquire_header`
 Reads the main header of a UAM\_IV CAMx file without reading the data frames, produces no terminal output.
 
-```
-#!fortran
+```fortran
 CALL inquire_header(fl)
 CALL inquire_header(fl, in_file, unit)
 ```
@@ -164,8 +160,7 @@ CALL inquire_header(fl, in_file, unit)
 #### Function `fl_spindex`, method `spindex`
 Ouputs the species index corresponding to a provided species name string that matches one of the species names in the c_spname array
 
-````
-#!Fortran
+````fortran
 ! Function call
 spec = 'TERP'
 species_index = fl_spindex(fl,spec)
@@ -184,8 +179,7 @@ These utilities are defined in the `utils_uam_iv` module
 #### Subroutine `clone_header`
 Copies the main header information from an source `UAM_IV` *object like* variable into a destination variable of the same type.
 
-```
-#!Fortran
+```fortran
 CALL clone_header(fl_inp, fl_out)
 ```
 ##### Required
@@ -195,8 +189,7 @@ CALL clone_header(fl_inp, fl_out)
 #### Subroutine `clone_species`
 Copies the species lists of a `UAM_IV` *object like* variable into a destination variable of the same type.
 
-```
-#!Fortran
+```fortran
 CALL clone_header(fl_inp, fl_out)
 ```
 ##### Required
@@ -208,8 +201,7 @@ CALL clone_header(fl_inp, fl_out)
 #### Subroutine `lintrans`
 Applies a linear transformation from an input matrix file to the species axis of a `UAM_IV` *object like* variable
 
-```
-#!Fortran
+```fortran
 CALL lintrans(fl_inp, fl_out, mat_file)
 ```
 ##### Required
@@ -222,8 +214,7 @@ CALL lintrans(fl_inp, fl_out, mat_file)
 #### Subroutine `concatenate`
 Takes a set of `UAM_IV` *object like* variables and concatenates them in time into a new object. For example, to create a weekly file from daily files.
 
-```
-#!Fortran
+```fortran
 CALL concatenate(fl_inp, fl_out)
 ```
 ##### Required
@@ -233,8 +224,7 @@ CALL concatenate(fl_inp, fl_out)
 #### Subroutine `average`
 Takes a `UAM_IV` *object like* variable and averages it over the time axis.
 
-```
-#!Fortran
+```fortran
 CALL average(fl_inp, fl_out)
 ```
 ##### Required
@@ -244,8 +234,7 @@ CALL average(fl_inp, fl_out)
 #### Subroutine `totalize`
 Takes a `UAM_IV` *object like* variable and totalizes it over the time axis.
 
-```
-#!Fortran
+```fortran
 CALL totalize(fl_inp, fl_out)
 ```
 ##### Required
@@ -255,8 +244,7 @@ CALL totalize(fl_inp, fl_out)
 #### Subroutine `flatten`
 Takes a `UAM_IV` *object like* variable of the `PTSOURCE  ` `ftype`, i.e. a Point Source emissions file, and adds all stack emissions into a `UAM_IV` *object like* variable of the `EMISSIONS` `ftype`, i.e. an Area emissions file.
 
-```
-#!Fortran
+```fortran
 CALL totalize(fl_inp, fl_out)
 ```
 ##### Required
